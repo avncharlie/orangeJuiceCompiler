@@ -105,6 +105,9 @@ def gen_ins(ins):
         elif part == "None":
             f_part["type"] = "null"
             f_part["value"] = None
+        elif part[0] == ":":
+            f_part["type"] = "label"
+            f_part["value"] = part[1:]
         else:
             if part[0] == 'r':
                 f_part["type"] = "register"
@@ -197,14 +200,25 @@ def search_scope_table(scope, name, scope_boundary='FunctionExpression'):
 
 def handle_node(node):
     '''
-    if given expression, assign reg to icurrent_scope, t
+    if given expression, assign reg to current_scope, t
     will be attached in 'register' attribute
     will also return register
     '''
 
     t = node["type"]
 
-    if t == 'VariableDeclaration':
+    if t == 'FunctionDeclaration':
+        # treated essentially like a special variable
+
+        func_name = node['id']['name']
+        func_id = get_name(func_name)
+
+        for param
+
+        r = request_register()
+
+
+    elif t == 'VariableDeclaration':
         for decl in node['declarations']:
 
             var_name = decl['id']['name']
@@ -291,17 +305,19 @@ def handle_node(node):
         r_left = node['left']['register']
         r_right = node['right']['register']
 
+        r_ans = request_register()
+        node['register'] = r_ans
+
         op = node['operator']
         if op == '+':
-            asm.append(gen_ins('add r{} r{}'.format(r_left, r_right)))
+            asm.append(gen_ins('add r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '==':
+            asm.append(gen_ins('eq r{} r{} r{}'.format(r_left, r_right, r_ans)))
         else:
             print('BinaryExpression operator {} not supported!'.format(op))
 
-        # free right reg and hijack right reg for whole expression register
-        # TODO: this isn't great if either expression is housing variable
+        free_register(r_left)
         free_register(r_right)
-        claim_register(r_left)
-        node['register'] = r_left
 
     elif t == 'NumericLiteral':
         r = request_register()
@@ -364,7 +380,7 @@ def handle_node(node):
         if op == '=':
             asm.append(gen_ins('mov r{} r{}'.format(r_left, r_right)))
         elif op == '+=':
-            asm.append(gen_ins('add r{} r{}'.format(r_left, r_right)))
+            asm.append(gen_ins('add r{} r{} r{}'.format(r_left, r_right, r_left)))
         else:
             print('AssignmentExpression operation {} not supported!'.format(op))
 
@@ -465,6 +481,39 @@ def handle_node(node):
 
         if node['computed']:
             free_register(node['property']['register'])
+
+    elif t == 'IfStatement':
+
+        '''
+        <test>
+        jnt :after_consequent
+        <consequent>
+        jmp :end_if
+        :after_consequent
+        <alternate>
+        :end_if
+        '''
+
+        after_consequent = get_name('after_consequent')
+        end_if = get_name('end_if')
+
+        # handle test (result will be in register)
+        handle_node(node['test'])
+        t_result = node['test']['register']
+
+        # jump if needed to after consequent
+        asm.append(gen_ins('jnt r{} :{}'.format(t_result, after_consequent)))
+
+        handle_node(node['consequent']) # is always a block statement
+        # jump to end of if statement after finishing consequent
+        asm.append(gen_ins('jmp :{}'.format(end_if)))
+    
+        asm.append(gen_ins(':'+after_consequent))
+        if node['alternate'] is not None:
+            handle_node(node['alternate'])
+
+        asm.append(gen_ins(':'+end_if))
+        
     else:
         print('{} node not implemented!'.format(t))
 

@@ -10,25 +10,25 @@ mov <dst> <src>
     dst must be register
     src can be either register or number literal
 
-add <dst> <src>
-    add src to dst
+add <a> <b> <dst>
+    calc a+b, store in dst 
     dst must be register
-    src can be either register or number literal
+    a and b can be either registers or number literals
 
-sub <dst> <src>
-    sub src from dst
+sub <a> <b> <dst>
+    calc a-b, store in dst 
     dst must be register
-    src can be either register or number literal
+    a and b can be either registers or number literals
 
-mul <dst> <src>
-    mul dst by src
+mul <a> <b> <dst>
+    calc a*b, store in dst 
     dst must be register
-    src can be either register or number literal
+    a and b can be either registers or number literals
 
-div <dst> <src>
-    div dst by src
+div <a> <b> <dst>
+    calc a/b, store in dst 
     dst must be register
-    src can be either register or number literal
+    a and b can be either registers or number literals
 
 jmp <label>
     jump execution to label
@@ -71,3 +71,6 @@ getprop <obj> <prop> <dst>
     prop can be either register or literal
     dst must be register
 
+eq <r1> <r2> <ans>
+    check if r1 == r2, store in ans
+    r1, r2 and ans must be registers
