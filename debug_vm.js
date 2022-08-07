@@ -31,34 +31,42 @@ let operations = {
     },
 
     add(args) {
-        let dst = args[0].value;
-        let src = args[1];
-        src = (src.type != "register") ? src.value : registers[src.value]
-        registers[dst] += src
+        let a = args[0];
+        let b = args[1];
+        a = (a.type != "register") ? a.value : registers[a.value];
+        b = (b.type != "register") ? b.value : registers[b.value];
+        let dst = args[2].value;
+        registers[dst] = a + b;
         instruction_index += 1;
     },
 
     sub(args) {
-        let dst = args[0].value;
-        let src = args[1];
-        src = (src.type != "register") ? src.value : registers[src.value]
-        registers[dst] -= src
+        let a = args[0];
+        let b = args[1];
+        a = (a.type != "register") ? a.value : registers[a.value];
+        b = (b.type != "register") ? b.value : registers[b.value];
+        let dst = args[2].value;
+        registers[dst] = a - b;
         instruction_index += 1;
     },
 
     mul(args) {
-        let dst = args[0].value;
-        let src = args[1];
-        src = (src.type != "register") ? src.value : registers[src.value]
-        registers[dst] *= src
+        let a = args[0];
+        let b = args[1];
+        a = (a.type != "register") ? a.value : registers[a.value];
+        b = (b.type != "register") ? b.value : registers[b.value];
+        let dst = args[2].value;
+        registers[dst] = a * b;
         instruction_index += 1;
     },
 
     div(args) {
-        let dst = args[0].value;
-        let src = args[1];
-        src = (src.type != "register") ? src.value : registers[src.value]
-        registers[dst] /= src
+        let a = args[0];
+        let b = args[1];
+        a = (a.type != "register") ? a.value : registers[a.value];
+        b = (b.type != "register") ? b.value : registers[b.value];
+        let dst = args[2].value;
+        registers[dst] = a / b;
         instruction_index += 1;
     },
 
@@ -124,6 +132,14 @@ let operations = {
         registers[dest] = registers[obj_reg][prop]
         instruction_index += 1;
     },
+
+    eq(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 == r2;
+        instruction_index += 1;
+    }
 
 }
 

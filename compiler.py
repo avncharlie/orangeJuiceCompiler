@@ -213,7 +213,7 @@ def handle_node(node):
         func_name = node['id']['name']
         func_id = get_name(func_name)
 
-        for param
+        #for param
 
         r = request_register()
 
