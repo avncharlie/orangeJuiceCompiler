@@ -1,0 +1,52 @@
+
+instructions:
+
+mov <dst> <src>
+    mov src to dst
+    dst must be register
+    src can be either register or number literal
+
+add <dst> <src>
+    add src to dst
+    dst must be register
+    src can be either register or number literal
+
+sub <dst> <src>
+    sub src from dst
+    dst must be register
+    src can be either register or number literal
+
+mul <dst> <src>
+    mul dst by src
+    dst must be register
+    src can be either register or number literal
+
+div <dst> <src>
+    div dst by src
+    dst must be register
+    src can be either register or number literal
+
+jmp <label>
+    jump execution to label
+
+jt <cond> <label>
+    if cond, jump to label (jump true)
+    cond must be a register
+
+jnt <cond> <label>
+    if not cond, jump to label (jump not true)
+    cond must be a register
+
+setvar <var> <value>
+    set variable 'var' to value
+    var must be string
+    value can be either register or literal
+
+getvar <var> <dst>
+    retrieve variables 'var' to register
+    var must be string
+    dst must be register
+
+delvar <var>
+    delete variable 'var'
+    var must be string

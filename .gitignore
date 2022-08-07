@@ -1,3 +1,9 @@
+# mac
+.DS_Store
+
+# vim
+*.swp
+
 # Logs
 logs
 *.log
