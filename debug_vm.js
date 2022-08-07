@@ -14,6 +14,13 @@ let registers = []
 let variables = {}
 
 let operations = {
+
+    global(args) {
+        let dst = args[0].value;
+        registers[dst] = globalThis;
+        instruction_index += 1;
+    },
+
     mov(args) {
         let dst = args[0].value;
         let src = args[1];
@@ -90,7 +97,31 @@ let operations = {
 
     delvar(args) {
         let var_name = args[0].value;
-        delete variables[var_name]
+        delete variables[var_name];
+        instruction_index += 1;
+    },
+
+    obj(args) {
+        registers[args[0].value] = {};
+        instruction_index += 1;
+    },
+
+    setprop(args) {
+        let obj_reg = args[0].value;
+        let prop = args[1];
+        prop = (prop.type != "register") ? prop.value : registers[prop.value]
+        let value = args[2];
+        value = (value.type != "register") ? value.value : registers[value.value]
+        registers[obj_reg][prop] = value;
+        instruction_index += 1;
+    },
+
+    getprop(args) {
+        let obj_reg = args[0].value;
+        let prop = args[1];
+        prop = (prop.type != "register") ? prop.value : registers[prop.value]
+        let dest = args[2].value;
+        registers[dest] = registers[obj_reg][prop]
         instruction_index += 1;
     },
 
@@ -120,3 +151,6 @@ function run() {
 
 populate_label_indexes();
 run()
+
+console.log('--------');
+console.log(variables);

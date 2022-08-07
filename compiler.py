@@ -3,7 +3,9 @@ import ast as py_ast
 import json
 import pprint
 import secrets
+import shlex
 
+out_file = open(sys.argv[2], 'w')
 ast_file = open(sys.argv[1])
 ast = json.load(ast_file)
 
@@ -28,7 +30,7 @@ compiler todo:
 '''
 
 DEBUG = False 
-DEBUG = True
+DEBUG = True; DEBUGDEBUG = False
 
 # if registers[x] == false or doesn't exist, register unclaimed
 registers = [False, False, False]
@@ -65,7 +67,16 @@ def get_name(name='ojc'):
         used_names.append(name)
         return name
 
+def _debug_print_ins(func):
+    def wrapper(*args, **kwargs):
+        a = func(*args, **kwargs)
+        if DEBUGDEBUG:
+            print(a['string_repr'])
+        return a
 
+    return wrapper
+
+@_debug_print_ins
 def gen_ins(ins):
     '''
     helper function to generate instructions from a string representation
@@ -82,7 +93,8 @@ def gen_ins(ins):
         }
 
     arguments = []
-    for part in ins.split()[1:]:
+    ins_split = shlex.split(ins, posix=False)
+    for part in ins_split[1:]:
         f_part = {}
         if part[0] in ['"', "'"]:
             f_part["type"] = "string"
@@ -103,7 +115,7 @@ def gen_ins(ins):
 
     return {
             "type": "operation",
-            "op": ins.split()[0],
+            "op": ins_split[0],
             "args": arguments,
             "string_repr": ins,
     }
@@ -114,18 +126,38 @@ def request_register():
     for i, x in enumerate(registers):
         if i in [0,1,2]: continue # can't request scratch registers
         if x == False:
-            registers[i] == True
+            registers[i] = True
+            if DEBUGDEBUG: print('...alloc r{}'.format(i))
             return i
 
     registers += [True]
+    if DEBUGDEBUG: print('...alloc r{}'.format(len(registers)-1))
     return len(registers) - 1
+
+def remove_var_reg(r):
+    '''
+    sets variables who have this register to have no register
+    '''
+    for scope in scopes:
+        for var_name in scopes[scope]['declared']:
+            if scopes[scope]['declared'][var_name]['register'] == r:
+                scopes[scope]['declared'][var_name]['register'] = None
 
 def free_register(r):
     '''
     unallocate specific register
     '''
+    if DEBUGDEBUG: print('...free r{}'.format(r))
     global registers
     registers[r] = False
+    remove_var_reg(r)
+
+def claim_register(r):
+    '''
+    claim specific register (like request register but you choose the register)
+    '''
+    if DEBUGDEBUG: print('...claim r{}'.format(r))
+    remove_var_reg(r)
 
 def get_var_from_id(var_id):
     '''
@@ -222,6 +254,9 @@ def handle_node(node):
             asm.append(gen_ins('setvar "{}" {}'.format(var_id, r)))
 
     elif t == 'Identifier':
+        # tries to get load identifier from scope table or from global and puts
+        # in register. essentially acts as expression node
+
         name = node['name']
 
         # try to find identifier in scope table
@@ -240,11 +275,15 @@ def handle_node(node):
                 r = request_register()
                 asm.append(gen_ins('getvar "{}" r{}'.format(id_info['id'], r)))
                 node['register'] = r
-                id_info['register'] = r # update id_info with register
+                #id_info['register'] = r # update id_info with register
 
         else:
-            # name not in any scope, attempt loading / setting from global
-            print('Identifier not in any scope, global loading not implemented!')
+            # name not in any scope, attempt loading from global
+            node['global_prop'] = True 
+            r = request_register()
+            asm.append(gen_ins('global r{}'.format(r)))
+            asm.append(gen_ins('getprop r{} "{}" r{}'.format(r, name, r)))
+            node['register'] = r
 
     elif t == 'BinaryExpression':
         handle_node(node['left'])
@@ -253,14 +292,15 @@ def handle_node(node):
         r_right = node['right']['register']
 
         op = node['operator']
-
         if op == '+':
             asm.append(gen_ins('add r{} r{}'.format(r_left, r_right)))
         else:
             print('BinaryExpression operator {} not supported!'.format(op))
 
         # free right reg and hijack right reg for whole expression register
+        # TODO: this isn't great if either expression is housing variable
         free_register(r_right)
+        claim_register(r_left)
         node['register'] = r_left
 
     elif t == 'NumericLiteral':
@@ -282,13 +322,35 @@ def handle_node(node):
         node['register'] = r
 
     elif t == 'AssignmentExpression':
-        # handle left and right nodes
+        # asign variables (through setvar) or object/arrays (through setprop)
+
         left = node['left']
         right = node['right']
+
+        is_member = False
+        if left['type'] == 'MemberExpression':
+            is_member = True
+
+        # needed for operations like +=, -=, etc
         handle_node(left)
-        handle_node(right)
         r_left = left['register']
+
+        '''
+        if left['type'] == 'MemberExpression':
+            is_member = True
+            r_left = request_register()
+        else:
+            # needed for operations like +=, -=, etc
+            handle_node(left)
+            r_left = left['register']
+        '''
+
+        # handle value
+        handle_node(right)
         r_right = right['register']
+
+        # TODO: should this be claimed before use?
+        node['register'] = r_left # assignments are expressions
 
         # check that variable is not const
         if 'id' in left:
@@ -297,17 +359,42 @@ def handle_node(node):
                 print('Cannot reassign a const!')
                 exit(1)
 
-        node['register'] = r_left # assignments are expressions
-
         op = node['operator']
+        # operations will leave assignment result in r_left
         if op == '=':
             asm.append(gen_ins('mov r{} r{}'.format(r_left, r_right)))
+        elif op == '+=':
+            asm.append(gen_ins('add r{} r{}'.format(r_left, r_right)))
         else:
             print('AssignmentExpression operation {} not supported!'.format(op))
 
-        if 'id' in left:
+        if is_member:
+            handle_node(left['object'])
+            obj_reg = left['object']['register']
+
+            if left['computed']:
+                handle_node(left['property'])
+                prop = 'r{}'.format(left['property']['register'])
+            else:
+                prop = '"{}"'.format(left['property']['name'])
+
+            asm.append(gen_ins('setprop r{} {} r{}'.format(obj_reg, prop, r_left)))
+
+            free_register(obj_reg)
+            if left['computed']:
+                free_register(left['property']['register'])
+                
+
+        elif 'id' in left:
             # update var table to new assignment
             asm.append(gen_ins('setvar "{}" r{}'.format(left['id'], r_left)))
+        elif 'global_prop' in left:
+            # update global property
+            r = request_register()
+            asm.append(gen_ins('global r{}'.format(r)))
+            asm.append(gen_ins('setprop r{} "{}" r{}'.format(r, left['name'], r_left)))
+            free_register(r)
+
 
         # free right side as was only evaluated to assign to left
         # we don't free left as it is the return register for this expression
@@ -322,6 +409,62 @@ def handle_node(node):
     elif t == 'BlockStatement':
         handle_block(node['body'], t)
 
+    elif t == 'ObjectExpression':
+        # we start with an empty object and load properties into one by one
+        obj_reg = request_register()
+        node['register'] = obj_reg
+        asm.append(gen_ins('obj r{}'.format(obj_reg)))
+
+        for prop in node['properties']:
+            if prop['type'] == 'ObjectProperty':
+                key = None
+                key_isreg = False
+                if prop['computed']:
+                    handle_node(prop['key'])
+                    key = prop['key']['register']
+                    key_isreg = True
+                else:
+                    # I've only seen keys to be strings or identifiers if not
+                    # computed
+                    if prop['key']['type'] == 'Identifier':
+                        key = prop['key']['name']
+                    elif prop['key']['type'] == 'StringLiteral':
+                        key = prop['key']['value']
+                    else:
+                        print('Object key type {} not implemented!'.format(prop['key']['type']))
+                handle_node(prop['value'])
+                val_reg = prop['value']['register']
+
+                k = 'r{}'.format(key) if key_isreg else '"{}"'.format(key)
+                asm.append(gen_ins('setprop r{} {} r{}'.format(obj_reg, k, val_reg)))
+                free_register(val_reg)
+
+                # property evaulated and moved into object, no need to hang on
+                # to register holding
+                if key_isreg:
+                    free_register(key)
+            else:
+                print('{} not implemented!'.format(prop['type']))
+
+    elif t == 'MemberExpression':
+        handle_node(node['object'])
+        obj_reg = node['object']['register']
+
+        if node['computed']:
+            handle_node(node['property'])
+            prop = 'r{}'.format(node['property']['register'])
+        else:
+            prop = '"{}"'.format(node['property']['name'])
+
+        # store prop in obj_reg
+        asm.append(gen_ins('getprop r{} {} r{}'.format(obj_reg, prop, obj_reg)))
+
+        # we will claim the obj reg as register for this expression
+        claim_register(obj_reg)
+        node['register'] = obj_reg
+
+        if node['computed']:
+            free_register(node['property']['register'])
     else:
         print('{} node not implemented!'.format(t))
 
@@ -355,8 +498,6 @@ def handle_block(block, base_node, root=False):
 
     # deconstruct scope:
 
-    return # DEBUG
-
     # no need to deconstruct if root; program ended
     if root: return
     # remove as current scope
@@ -385,4 +526,16 @@ compile(ast)
 for ins in asm: print(ins['string_repr'])
 
 # scope info
-print(json.dumps(scopes, indent=2), scope_stack)
+#print(json.dumps(scopes, indent=2), scope_stack)
+
+instructions = {
+    'instructions': asm
+}
+
+if DEBUG:
+    #json.dump(instructions, out_file, indent=2)
+    json.dump(instructions, out_file)
+else:
+    json.dump(instructions, out_file)
+
+out_file.close()

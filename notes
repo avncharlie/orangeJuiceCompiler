@@ -1,6 +1,10 @@
 
 instructions:
 
+global <dst>
+    move global object into register
+    dst must be register
+
 mov <dst> <src>
     mov src to dst
     dst must be register
@@ -50,3 +54,20 @@ getvar <var> <dst>
 delvar <var>
     delete variable 'var'
     var must be string
+
+obj <dst>
+    load empty object into register
+    dst must be register
+
+setprop <obj> <prop> <value>
+    set property on object
+    obj must be register
+    prop can be either register or literal
+    value can be either register or literal
+
+getprop <obj> <prop> <dst>
+    retrieve property from object into dst
+    obj must be register
+    prop can be either register or literal
+    dst must be register
+
