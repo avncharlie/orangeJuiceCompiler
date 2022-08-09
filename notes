@@ -55,6 +55,15 @@ delvar <var>
     delete variable 'var'
     var must be string
 
+arr <dst>
+    load empty array into register
+    dst must be register
+
+arrpush <arr> <elem>
+    push item into array 
+    arr must be register
+    elem can be either register or literal
+
 obj <dst>
     load empty object into register
     dst must be register
@@ -74,3 +83,34 @@ getprop <obj> <prop> <dst>
 eq <r1> <r2> <ans>
     check if r1 == r2, store in ans
     r1, r2 and ans must be registers
+
+neq <r1> <r2> <ans>
+    check if r1 != r2, store in ans
+    r1, r2 and ans must be registers
+
+le <r1> <r2> <ans>
+    calc r1 < r2, store in ans
+    r1, r2 and ans must be registers
+
+createfunc 'label' <arglist> <r>
+    create a wrapper function and store in r
+    need label to start running vm at on function call and list of parameter
+    names
+    label must be a label
+    arglist must a register (containing a list)
+    r must be a register
+
+return <r>
+    return something back
+    r can either be a register or a literal 
+
+call <function> <args> <context> <result>
+    calls function with context and arguments and stores it in result register
+    specifically:
+        function.apply(context, args)
+
+    function must be a register with a function
+    args must be a register with a list of arguments
+    context must be a register
+    result must be a register
+

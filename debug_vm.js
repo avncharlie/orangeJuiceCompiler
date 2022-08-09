@@ -10,10 +10,63 @@ let instruction_file = process.argv[2];
 let instructions = JSON.parse(fs.readFileSync(instruction_file, 'utf8'))['instructions'];
 let instruction_index = 0
 let label_indexes = {}
+let reg_stack = []
 let registers = []
-let variables = {}
+let variables = [{}]
 
 let operations = {
+
+    create_func(args) {
+        let func_start_label = args[0].value
+        let arglist = registers[args[1].value]
+        let r = args[2].value
+
+        registers[r] = function() {
+            // backup then reset registers 
+            reg_stack.push(registers);
+            registers = [];
+
+            // backup instruction index
+            let instruction_index_backup = instruction_index;
+
+            // create new varmap for function declared vars
+            let func_varmap = {};
+            variables.push(func_varmap);
+
+            // setup arguments (manually set them in varmap)
+            for (let [i, arg] of Array.from(arguments).entries()) {
+                func_varmap[arglist[i]] = arg
+            }
+
+            // run function at function label and get return value
+            let rval = run({ start_at_label: func_start_label });
+
+            // pop varmap
+            variables.pop();
+
+            // restore instruction index
+            instruction_index = instruction_index_backup;
+
+            // restore registers
+            registers = reg_stack.pop();
+
+            // return!
+            return rval;
+        }
+
+        instruction_index += 1;
+    },
+
+    call(args) {
+        let func = registers[args[0].value];
+        let func_args = registers[args[1].value];
+        let ctx = registers[args[2].value];
+        let result_reg = args[3].value;
+
+        let result = func.apply(ctx, func_args);
+        registers[result_reg] = result;
+        instruction_index += 1;
+    },
 
     global(args) {
         let dst = args[0].value;
@@ -89,23 +142,53 @@ let operations = {
     },
 
     setvar(args) {
+
         let var_name = args[0].value;
         let val = args[1];
         val = (val.type != "register") ? val.value : registers[val.value]
-        variables[var_name] = val
+
+        // pick scope (current function or global)
+        let varmap = variables[variables.length - 1]
+        if (var_name in variables[0]) {
+            varmap = variables[0]
+        } 
+
+        varmap[var_name] = val
         instruction_index += 1;
     },
 
     getvar(args) {
+
         let var_name = args[0].value;
         let reg = args[1].value;
-        registers[reg] = variables[var_name];
+
+        // pick scope (current function or global)
+        let varmap = variables[0]
+        if (var_name in variables[variables.length - 1]) {
+            varmap = variables[variables.length - 1]
+        }
+
+        registers[reg] = varmap[var_name];
         instruction_index += 1;
     },
 
     delvar(args) {
         let var_name = args[0].value;
-        delete variables[var_name];
+        let varmap = variables[variables.length - 1]
+        delete varmap[var_name];
+        instruction_index += 1;
+    },
+
+    arr(args) {
+        registers[args[0].value] = [];
+        instruction_index += 1;
+    },
+
+    arrpush(args) {
+        let arr = registers[args[0].value];
+        let elem = args[1];
+        elem = (elem.type != "register") ? elem.value : registers[elem.value]
+        arr.push(elem);
         instruction_index += 1;
     },
 
@@ -139,6 +222,22 @@ let operations = {
         let ans = args[2].value;
         registers[ans] = r1 == r2;
         instruction_index += 1;
+    },
+
+    neq(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 != r2;
+        instruction_index += 1;
+    },
+
+    le(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 < r2;
+        instruction_index += 1;
     }
 
 }
@@ -151,7 +250,13 @@ function populate_label_indexes() {
     }
 }
 
-function run() {
+function run(args) {
+
+    if (args != undefined) {
+        // used when running as function
+        instruction_index = label_indexes[args.start_at_label];
+    }
+
     while (instruction_index < instructions.length) {
         let ins = instructions[instruction_index]
 
@@ -160,8 +265,16 @@ function run() {
             continue;
         }
 
+        // special handling for return
+        if (ins.op == 'return') {
+            let rval = ins.args[0]
+            rval = (rval.type != "register") ? rval.value : registers[rval.value]
+            return rval
+        }
+
+        //console.log(ins.op);
         operations[ins.op](ins.args);
-        console.log(registers, variables);
+        //console.log(registers, variables);
     }
 }
 
@@ -170,3 +283,4 @@ run()
 
 console.log('--------');
 console.log(variables);
+//console.log(registers);

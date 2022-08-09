@@ -1,9 +1,11 @@
 import sys
 import ast as py_ast 
+import copy
 import json
 import pprint
 import secrets
 import shlex
+import random
 
 out_file = open(sys.argv[2], 'w')
 ast_file = open(sys.argv[1])
@@ -29,14 +31,17 @@ compiler todo:
     - hoisting vars
 '''
 
-DEBUG = False 
-DEBUG = True; DEBUGDEBUG = False
+DEBUG = False; DEBUGDEBUG = False
+#DEBUG = True; DEBUGDEBUG = False
 
 # if registers[x] == false or doesn't exist, register unclaimed
+reg_stack = []
 registers = [False, False, False]
 
+scopes_backup = []
 scopes = {}
 
+scope_stack_stack = []
 scope_stack = [None]
 curr_scope = lambda : scope_stack[len(scope_stack)-1]
 
@@ -54,10 +59,12 @@ def get_name(name='ojc'):
 
     global debug_name_counter, used_names
 
+    rand_length = random.randrange(4,12)
+
     if not DEBUG:
-        name = secrets.token_hex(16)
+        name = secrets.token_hex(rand_length)
         while name in used_names:
-            name = secrets.token_hex(16)
+            name = secrets.token_hex(rand_length)
         used_names.append(name)
         return name
     else:
@@ -137,6 +144,14 @@ def request_register():
     if DEBUGDEBUG: print('...alloc r{}'.format(len(registers)-1))
     return len(registers) - 1
 
+def remove_all_var_registers():
+    '''
+    unset all registers holding variables
+    '''
+    for scope in scopes:
+        for var_name in scopes[scope]['declared']:
+            scopes[scope]['declared'][var_name]['register'] = None
+
 def remove_var_reg(r):
     '''
     sets variables who have this register to have no register
@@ -146,11 +161,30 @@ def remove_var_reg(r):
             if scopes[scope]['declared'][var_name]['register'] == r:
                 scopes[scope]['declared'][var_name]['register'] = None
 
-def free_register(r):
+def reg_holding_var(r):
+    '''
+    returns true if register holding variable
+    '''
+    for scope in scopes:
+        for var_name in scopes[scope]['declared']:
+            if scopes[scope]['declared'][var_name]['register'] == r:
+                return True
+    return False
+
+def free_register(r, force=False):
     '''
     unallocate specific register
+    if force flag false, won't free register holding variable
     '''
     if DEBUGDEBUG: print('...free r{}'.format(r))
+
+    if r is None:
+        return
+
+    if not force:
+        if reg_holding_var(r):
+            return
+
     global registers
     registers[r] = False
     remove_var_reg(r)
@@ -198,24 +232,156 @@ def search_scope_table(scope, name, scope_boundary='FunctionExpression'):
     # name not found
     return None
 
-def handle_node(node):
+def handle_node(node, named_block=None):
     '''
     if given expression, assign reg to current_scope, t
     will be attached in 'register' attribute
     will also return register
     '''
 
+    global registers, reg_stack
+    global scope_stack, scope_stack_stack
+    global scopes, scopes_backup
+
     t = node["type"]
 
-    if t == 'FunctionDeclaration':
-        # treated essentially like a special variable
+    if t in ['FunctionDeclaration', 'FunctionExpression']:
 
-        func_name = node['id']['name']
-        func_id = get_name(func_name)
+        # prepare function in compiler and VM:
 
-        #for param
+        # step 1: get function label 
+        func_name = None
+        func_label = 'anon'
+        func_end_label = 'anon_end'
+        if node['id'] is not None:
+            func_name = node['id']['name']
+            func_label = get_name('func_start_'+func_name)
+            func_end_label = get_name('func_end_'+func_name)
 
-        r = request_register()
+        # step 2: get arg names and store in array for VM to create func and to
+        # sneak into function scope when handling function body
+        arg_list_reg = request_register()
+        asm.append(gen_ins('arr r{}'.format(arg_list_reg)))
+        func_preset_vars = {}
+        for arg in node['params']:
+            arg_id = get_name(arg['name'])
+            asm.append(gen_ins('arrpush r{} "{}"'.format(arg_list_reg, arg_id)))
+            func_preset_vars[arg['name']] = {
+                'id': arg_id,
+                'register': None,
+                'type': 'var',
+            }
+
+        # step 3: create function in vm and store as variable if need be
+        func_reg = request_register()
+        node['register'] = func_reg # function declarations are an expression (e.g. anonymous functions)
+        asm.append(gen_ins('create_func :{} r{} r{}'.format(func_label,
+            arg_list_reg, func_reg)))
+
+        # if function not anonymous, assign as variable
+        if func_name is not None:
+            func_id = get_name('func_' + node['id']['name']);
+
+            # book keep created var (define in top scope)
+            top_scope = scope_stack[1]
+            scopes[top_scope]['declared'][func_name] = {
+                'id': func_id,
+                'register': func_reg,
+                'type': 'function'
+            }
+
+            # create var at runtime
+            asm.append(gen_ins('setvar "{}" r{}'.format(func_id, func_reg)))
+
+        # jump to after function body after handling it (otherwise vm will
+        # execute function)
+        asm.append(gen_ins('jmp :{}'.format(func_end_label)))
+
+        # handle body of function:
+
+        # step 4: push and reset register allocations
+        reg_stack.append(registers[:]) # push copy of registers
+        registers = [False, False, False]
+
+        # step 5: backup scoped symbol table and remove register allocations for
+        # variables
+        scope_stack_stack.append(scope_stack[:])
+        scopes_backup.append(copy.deepcopy(scopes))
+        remove_all_var_registers()
+
+        # step 6: handle body of function with arguments as preset vars
+        asm.append(gen_ins(':' + func_label)) # start label
+        handle_block(node['body']['body'], t, preset_vars=func_preset_vars)
+        asm.append(gen_ins('return None')) # catch all return if there is no return in func body
+        asm.append(gen_ins(':' + func_end_label))
+
+        # cleanup:
+
+        # step 7: restore all backed up registers and scope information
+        registers = reg_stack.pop()
+        scope_stack = scope_stack_stack.pop()
+        scopes = scopes_backup.pop()
+
+    elif t == 'ReturnStatement':
+        if 'argument' in node:
+            handle_node(node['argument'])
+            return_reg = node['argument']['register']
+            asm.append(gen_ins('return r{}'.format(return_reg)))
+        else:
+            asm.append(gen_ins('return None'))
+
+    elif t == 'CallExpression':
+        result_reg = request_register()
+
+        # generate arguments
+        arg_reg = request_register()
+        asm.append(gen_ins('arr r{}'.format(arg_reg)))
+        for arg in node['arguments']:
+            handle_node(arg)
+            asm.append(gen_ins('arrpush r{} r{}'.format(arg_reg, arg['register'])))
+            free_register(arg['register'])
+
+        ctx_reg = None
+        if node['callee']['type'] != 'MemberExpression':
+            # get function
+            handle_node(node['callee'])
+            func_reg = node['callee']['register']
+
+            # use global context
+            ctx_reg = request_register()
+            asm.append(gen_ins('global r{}'.format(ctx_reg)))
+        else:
+            # we handle member expressions differently as we will use the object
+            # as the context (e.g. for [].push, we need [] as the context)
+            callee = node['callee']
+
+            # use calling object context
+            handle_node(callee['object'])
+            ctx_reg = callee['object']['register']
+
+            if callee['computed']:
+                handle_node(callee['property'])
+                prop = 'r{}'.format(callee['property']['register'])
+            else:
+                prop = '"{}"'.format(callee['property']['name'])
+
+            # get function
+            func_reg = request_register()
+            asm.append(gen_ins('getprop r{} {} r{}'.format(ctx_reg, prop, func_reg)))
+
+            if callee['computed']:
+                free_register(callee['property']['register'])
+
+        # call function
+        asm.append(gen_ins('call r{} r{} r{} r{}'.format(func_reg, arg_reg, ctx_reg, result_reg)))
+
+        # return result register
+        node['register'] = result_reg
+
+        # free all other registers
+        free_register(func_reg)
+        free_register(arg_reg)
+        free_register(ctx_reg)
 
 
     elif t == 'VariableDeclaration':
@@ -289,7 +455,6 @@ def handle_node(node):
                 r = request_register()
                 asm.append(gen_ins('getvar "{}" r{}'.format(id_info['id'], r)))
                 node['register'] = r
-                #id_info['register'] = r # update id_info with register
 
         else:
             # name not in any scope, attempt loading from global
@@ -311,8 +476,16 @@ def handle_node(node):
         op = node['operator']
         if op == '+':
             asm.append(gen_ins('add r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '-':
+            asm.append(gen_ins('sub r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '*':
+            asm.append(gen_ins('mul r{} r{} r{}'.format(r_left, r_right, r_ans)))
         elif op == '==':
             asm.append(gen_ins('eq r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '!=':
+            asm.append(gen_ins('neq r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '<':
+            asm.append(gen_ins('le r{} r{} r{}'.format(r_left, r_right, r_ans)))
         else:
             print('BinaryExpression operator {} not supported!'.format(op))
 
@@ -351,16 +524,6 @@ def handle_node(node):
         handle_node(left)
         r_left = left['register']
 
-        '''
-        if left['type'] == 'MemberExpression':
-            is_member = True
-            r_left = request_register()
-        else:
-            # needed for operations like +=, -=, etc
-            handle_node(left)
-            r_left = left['register']
-        '''
-
         # handle value
         handle_node(right)
         r_right = right['register']
@@ -381,6 +544,8 @@ def handle_node(node):
             asm.append(gen_ins('mov r{} r{}'.format(r_left, r_right)))
         elif op == '+=':
             asm.append(gen_ins('add r{} r{} r{}'.format(r_left, r_right, r_left)))
+        elif op == '-=':
+            asm.append(gen_ins('sub r{} r{} r{}'.format(r_left, r_right, r_left)))
         else:
             print('AssignmentExpression operation {} not supported!'.format(op))
 
@@ -411,7 +576,6 @@ def handle_node(node):
             asm.append(gen_ins('setprop r{} "{}" r{}'.format(r, left['name'], r_left)))
             free_register(r)
 
-
         # free right side as was only evaluated to assign to left
         # we don't free left as it is the return register for this expression
         free_register(r_right)
@@ -423,7 +587,18 @@ def handle_node(node):
         free_register(node['expression']['register'])
 
     elif t == 'BlockStatement':
-        handle_block(node['body'], t)
+        name = t if named_block is None else named_block
+        handle_block(node['body'], name)
+
+    elif t == 'ArrayExpression':
+        r = request_register()
+        asm.append(gen_ins('arr r{}'.format(r)))
+        for elem in node['elements']:
+            handle_node(elem)
+            asm.append(gen_ins('arrpush r{} r{}'.format(r, elem['register'])))
+            free_register(elem['register'])
+
+        node['register'] = r
 
     elif t == 'ObjectExpression':
         # we start with an empty object and load properties into one by one
@@ -482,8 +657,64 @@ def handle_node(node):
         if node['computed']:
             free_register(node['property']['register'])
 
-    elif t == 'IfStatement':
+    elif t == 'ForStatement':
+        '''
+        <init>
+        :start_for
+        <test>
+        jnt :end_for
+        <body>
+        <update>
+        jmp :start_for
+        :end_for
+        '''
 
+        start_for = get_name('start_for')
+        end_for = get_name('end_for')
+
+        # run initialise block
+        handle_node(node['init'])
+        asm.append(gen_ins(':' +start_for))
+        # run test
+        handle_node(node['test'])
+        t_result = node['test']['register']
+        # end loop if needed
+        asm.append(gen_ins('jnt r{} :{}'.format(t_result, end_for)))
+        # loop body
+        handle_node(node['body'], named_block=t)
+        # update
+        handle_node(node['update'])
+        # restart loop
+        asm.append(gen_ins('jmp :{}'.format(start_for)))
+        asm.append(gen_ins(':{}'.format(end_for)))
+
+
+    elif t == 'WhileStatement':
+        '''
+        :start_while
+        <test>
+        jnt :end_while
+        <body>
+        jmp :start_while
+        :end_while
+        '''
+
+        start_while = get_name('start_while')
+        end_while = get_name('end_while')
+        asm.append(gen_ins(':'+start_while))
+        # handle test
+        handle_node(node['test'])
+        t_result = node['test']['register']
+        # end loop if needed
+        asm.append(gen_ins('jnt r{} :{}'.format(t_result, end_while)))
+        # loop body
+        handle_node(node['body'], named_block=t)
+        # restart loop
+        asm.append(gen_ins('jmp :{}'.format(start_while)))
+        asm.append(gen_ins(':'+end_while))
+
+
+    elif t == 'IfStatement':
         '''
         <test>
         jnt :after_consequent
@@ -504,13 +735,13 @@ def handle_node(node):
         # jump if needed to after consequent
         asm.append(gen_ins('jnt r{} :{}'.format(t_result, after_consequent)))
 
-        handle_node(node['consequent']) # is always a block statement
+        handle_node(node['consequent'], named_block=t) # is always a block statement
         # jump to end of if statement after finishing consequent
         asm.append(gen_ins('jmp :{}'.format(end_if)))
     
         asm.append(gen_ins(':'+after_consequent))
         if node['alternate'] is not None:
-            handle_node(node['alternate'])
+            handle_node(node['alternate'], named_block=t)
 
         asm.append(gen_ins(':'+end_if))
         
@@ -518,7 +749,7 @@ def handle_node(node):
         print('{} node not implemented!'.format(t))
 
             
-def handle_block(block, base_node, root=False):
+def handle_block(block, base_node, root=False, preset_vars=None):
     '''
     will create new scope and execute code in scope (if not root, root scope manually created)
 
@@ -531,11 +762,11 @@ def handle_block(block, base_node, root=False):
     # define scope as child of current scope (root doesn't have a parent)
     if not root:
         scopes[curr_scope()]['children'].append(scope_id)
-    # add scope to scopes datastore
+    # add scope to scopes datastore (with preset vars if needed)
     scopes[scope_id] = {
         'parent': curr_scope(),
         'children': [],
-        'declared': {},
+        'declared': {} if preset_vars is None else preset_vars,
         'created_from': base_node
     }
     # update current scope to newly created one
@@ -546,6 +777,7 @@ def handle_block(block, base_node, root=False):
         handle_node(node)
 
     # deconstruct scope:
+    #return
 
     # no need to deconstruct if root; program ended
     if root: return
@@ -559,12 +791,52 @@ def handle_block(block, base_node, root=False):
     for symbol in declared:
         symbol = declared[symbol]
         asm.append(gen_ins('delvar "{}"'.format(symbol['id'])))
-        free_register(symbol['register'])
+        free_register(symbol['register'], force=True)
     # delete from scope db
     del scopes[scope_id]
 
+def scope_for_loops(node):
+    '''
+    wrap for loops around a block
+    '''
+
+    # apply to every item of list and return list
+    if type(node) is list:
+        new = []
+        for x in node:
+            new.append(scope_for_loops(x))
+        return new
+    
+    # if not object, return as is
+    if type(node) is not dict:
+        return node
+
+    # base case: found for statement
+    if 'type' in node and node['type'] == 'ForStatement':
+        return {
+            'type': 'BlockStatement',
+            'body': [
+                node
+            ]
+        }
+
+    # apply to every key and return node
+    for key in node:
+        node[key] = scope_for_loops(node[key])
+
+    return node
+
+def preprocess(a):
+    global ast
+    ast = scope_for_loops(ast)
+
 def compile(ast):
     handle_block(ast['body'], ast['type'], root=True)
+
+
+preprocess(ast)
+
+#print(json.dumps(ast, indent=2))
 
 compile(ast)
 
@@ -572,7 +844,8 @@ compile(ast)
 #print(json.dumps(asm, indent=2))
 
 # short form instructions
-for ins in asm: print(ins['string_repr'])
+if True or 'silent' not in sys.argv:
+    for ins in asm: print(ins['string_repr'])
 
 # scope info
 #print(json.dumps(scopes, indent=2), scope_stack)
@@ -582,8 +855,7 @@ instructions = {
 }
 
 if DEBUG:
-    #json.dump(instructions, out_file, indent=2)
-    json.dump(instructions, out_file)
+    json.dump(instructions, out_file, indent=2)
 else:
     json.dump(instructions, out_file)
 
