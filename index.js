@@ -1,6 +1,31 @@
- setInterval(function () {
- 	console.log('hiya');
- }, 1000); 
+console.log(a(10));
+
+function a(b) {
+    return c(b)+2;
+}
+
+function c(b) {
+    return b+2;
+}
+
+
+
+/*
+for (let x = 10; x>=0; x--) {
+    console.log('yahoo');
+}
+*/
+
+/*
+var x = 0;
+while (true) {
+    console.log(x);
+    if (x == 2){
+        break;
+    }
+    x++;
+}
+*/
 
 /*
 // function demo with factorials and fibonacci

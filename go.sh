@@ -1,3 +1,7 @@
 #!/bin/sh
 
-./build.sh && ./run.sh
+./build.sh 
+
+echo '--------'
+
+./run.sh

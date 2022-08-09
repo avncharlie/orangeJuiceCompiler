@@ -6,8 +6,10 @@ if (process.argv.length != 3) {
 }
 
 let instruction_file = process.argv[2];
+let instructions = JSON.parse(fs.readFileSync(instruction_file, 'utf8'))
 
-let instructions = JSON.parse(fs.readFileSync(instruction_file, 'utf8'))['instructions'];
+// begin vm
+instructions = instructions['instructions'];
 let instruction_index = 0
 let label_indexes = {}
 let reg_stack = []
@@ -232,11 +234,49 @@ let operations = {
         instruction_index += 1;
     },
 
+    ge(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 > r2;
+        instruction_index += 1;
+    },
+
+    geeq(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 >= r2;
+        instruction_index += 1;
+    },
+
     le(args) {
         let r1 = registers[args[0].value];
         let r2 = registers[args[1].value];
         let ans = args[2].value;
         registers[ans] = r1 < r2;
+        instruction_index += 1;
+    },
+
+    leeq(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 <= r2;
+        instruction_index += 1;
+    },
+
+    nop(args) {
+        instruction_index += 1;
+    },
+
+    regex(args) {
+        let pattern = args[0];
+        let flags = args[1];
+        pattern = (pattern.type != "register") ? pattern.value : registers[pattern.value];
+        flags = (flags.type != "register") ? flags.value : registers[flags.value];
+        let reg = args[2].value;
+        registers[reg] = new RegExp(pattern, flags)
         instruction_index += 1;
     }
 
@@ -280,6 +320,7 @@ function run(args) {
 
 populate_label_indexes();
 run()
+// end vm
 
 console.log('--------');
 console.log(variables);

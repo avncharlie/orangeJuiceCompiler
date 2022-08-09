@@ -33,6 +33,7 @@ compiler todo:
 
 DEBUG = False; DEBUGDEBUG = False
 #DEBUG = True; DEBUGDEBUG = False
+#DEBUG = True; DEBUGDEBUG = True
 
 # if registers[x] == false or doesn't exist, register unclaimed
 reg_stack = []
@@ -44,6 +45,8 @@ scopes = {}
 scope_stack_stack = []
 scope_stack = [None]
 curr_scope = lambda : scope_stack[len(scope_stack)-1]
+
+loopstack = []
 
 branch_counter = 0
 asm = []
@@ -120,7 +123,11 @@ def gen_ins(ins):
                 f_part["type"] = "register"
             elif part[0] == '#':
                 f_part["type"] = "number"
-            f_part["value"] = int(part[1:])
+            try:
+                f_part["value"] = int(part[1:])
+            except ValueError:
+                f_part["value"] = float(part[1:])
+
         arguments.append(f_part)
 
     return {
@@ -232,7 +239,7 @@ def search_scope_table(scope, name, scope_boundary='FunctionExpression'):
     # name not found
     return None
 
-def handle_node(node, named_block=None):
+def handle_node(node, named_block=None, declare_func_mode=False):
     '''
     if given expression, assign reg to current_scope, t
     will be attached in 'register' attribute
@@ -246,55 +253,75 @@ def handle_node(node, named_block=None):
     t = node["type"]
 
     if t in ['FunctionDeclaration', 'FunctionExpression']:
+        '''
+        TODO: document declare_func_mode
+        '''
 
         # prepare function in compiler and VM:
 
-        # step 1: get function label 
-        func_name = None
-        func_label = 'anon'
-        func_end_label = 'anon_end'
-        if node['id'] is not None:
-            func_name = node['id']['name']
-            func_label = get_name('func_start_'+func_name)
-            func_end_label = get_name('func_end_'+func_name)
+        if declare_func_mode:
+            # step 1: get function label 
+            func_name = None
+            func_label = 'anon'
+            func_end_label = 'anon_end'
+            if node['id'] is not None:
+                func_name = node['id']['name']
+                func_label = get_name('func_start_'+func_name)
+                func_end_label = get_name('func_end_'+func_name)
 
-        # step 2: get arg names and store in array for VM to create func and to
-        # sneak into function scope when handling function body
-        arg_list_reg = request_register()
-        asm.append(gen_ins('arr r{}'.format(arg_list_reg)))
-        func_preset_vars = {}
-        for arg in node['params']:
-            arg_id = get_name(arg['name'])
-            asm.append(gen_ins('arrpush r{} "{}"'.format(arg_list_reg, arg_id)))
-            func_preset_vars[arg['name']] = {
-                'id': arg_id,
-                'register': None,
-                'type': 'var',
-            }
 
-        # step 3: create function in vm and store as variable if need be
-        func_reg = request_register()
-        node['register'] = func_reg # function declarations are an expression (e.g. anonymous functions)
-        asm.append(gen_ins('create_func :{} r{} r{}'.format(func_label,
-            arg_list_reg, func_reg)))
+            # step 2: get arg names and store in array for VM to create func and to
+            # sneak into function scope when handling function body
+            arg_list_reg = request_register()
+            asm.append(gen_ins('arr r{}'.format(arg_list_reg)))
+            func_preset_vars = {}
+            for arg in node['params']:
+                arg_id = get_name(arg['name'])
+                asm.append(gen_ins('arrpush r{} "{}"'.format(arg_list_reg, arg_id)))
+                func_preset_vars[arg['name']] = {
+                    'id': arg_id,
+                    'register': None,
+                    'type': 'var',
+                }
 
-        # if function not anonymous, assign as variable
-        if func_name is not None:
-            func_id = get_name('func_' + node['id']['name']);
+            # step 3: create function in vm and store as variable if need be
+            func_reg = request_register()
+            node['register'] = func_reg # function declarations are an expression (e.g. anonymous functions)
+            asm.append(gen_ins('create_func :{} r{} r{}'.format(func_label,
+                arg_list_reg, func_reg)))
 
-            # book keep created var (define in top scope)
-            top_scope = scope_stack[1]
-            scopes[top_scope]['declared'][func_name] = {
-                'id': func_id,
-                'register': func_reg,
-                'type': 'function'
-            }
+            # TODO: free arg_list_reg??
 
-            # create var at runtime
-            asm.append(gen_ins('setvar "{}" r{}'.format(func_id, func_reg)))
+            # if function not anonymous, assign as variable
+            if func_name is not None:
+                func_id = get_name('func_' + node['id']['name']);
 
-        # jump to after function body after handling it (otherwise vm will
-        # execute function)
+                # book keep created var (define in top scope)
+                top_scope = scope_stack[1]
+                scopes[top_scope]['declared'][func_name] = {
+                    'id': func_id,
+                    'register': func_reg,
+                    'type': 'function'
+                }
+
+                # create var at runtime
+                asm.append(gen_ins('setvar "{}" r{}'.format(func_id, func_reg)))
+
+            # store names for handling run
+            node['func_name'] = func_name
+            node['func_label'] = func_label
+            node['func_end_label'] = func_end_label
+            node['func_preset_vars'] = func_preset_vars
+
+            return
+
+        func_name = node['func_name'] 
+        func_label = node['func_label'] 
+        func_end_label = node['func_end_label'] 
+        func_preset_vars = node['func_preset_vars'] 
+
+        # jump to end of function if function accidently 'run into' (calls to
+        # function will jump directly to label defining it)
         asm.append(gen_ins('jmp :{}'.format(func_end_label)))
 
         # handle body of function:
@@ -464,6 +491,49 @@ def handle_node(node, named_block=None):
             asm.append(gen_ins('getprop r{} "{}" r{}'.format(r, name, r)))
             node['register'] = r
 
+    elif t == 'UpdateExpression':
+        arg_reg = None
+        if not node['prefix']:
+            handle_node(node['argument'])
+            handled_reg = node['argument']['register']
+            arg_reg = request_register()
+            asm.append(gen_ins('mov r{} r{}'.format(arg_reg, handled_reg)))
+
+        op = node['operator']
+
+        fake_assignment = {
+            'type': 'AssignmentExpression',
+            'operator': '+=' if op == '++' else '-=',
+            'left': node['argument'],
+            'right': {
+                'type': 'NumericLiteral',
+                'value': 1
+            }
+        }
+        handle_node(fake_assignment)
+        assigned_reg = fake_assignment['register']
+
+        if node['prefix']:
+            node['register'] = assigned_reg 
+        else:
+            node['register'] = arg_reg
+            free_register(assigned_reg)
+
+    elif t == 'UnaryExpression':
+        handle_node(node['argument'])
+        r = node['argument']['register']
+        r_result = request_register()
+
+        op = node['operator']
+
+        if op == '-':
+            asm.append(gen_ins('sub #0 r{} r{}'.format(r, r_result)))
+        else:
+            print('UnaryExpression operator {} not supported!'.format(op))
+
+        node['register'] = r_result
+        free_register(r)
+
     elif t == 'BinaryExpression':
         handle_node(node['left'])
         handle_node(node['right'])
@@ -480,17 +550,40 @@ def handle_node(node, named_block=None):
             asm.append(gen_ins('sub r{} r{} r{}'.format(r_left, r_right, r_ans)))
         elif op == '*':
             asm.append(gen_ins('mul r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '/':
+            asm.append(gen_ins('div r{} r{} r{}'.format(r_left, r_right, r_ans)))
         elif op == '==':
             asm.append(gen_ins('eq r{} r{} r{}'.format(r_left, r_right, r_ans)))
         elif op == '!=':
             asm.append(gen_ins('neq r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '>':
+            asm.append(gen_ins('ge r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '>=':
+            asm.append(gen_ins('geeq r{} r{} r{}'.format(r_left, r_right, r_ans)))
         elif op == '<':
             asm.append(gen_ins('le r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '<=':
+            asm.append(gen_ins('leeq r{} r{} r{}'.format(r_left, r_right, r_ans)))
         else:
             print('BinaryExpression operator {} not supported!'.format(op))
 
         free_register(r_left)
         free_register(r_right)
+
+    elif t == 'EmptyStatement':
+        asm.append(gen_ins('nop'))
+
+    elif t == 'RegExpLiteral':
+        r = request_register()
+        pattern = node['pattern']
+        flags = node['flags']
+        asm.append(gen_ins('regex "{}" "{}" r{}'.format(pattern, flags, r)))
+        node['register'] = r
+
+    elif t == 'NullLiteral':
+        r = request_register()
+        asm.append(gen_ins('mov r{} None'.format(r)))
+        node['register'] = r
 
     elif t == 'NumericLiteral':
         r = request_register()
@@ -500,8 +593,8 @@ def handle_node(node, named_block=None):
 
     elif t == 'StringLiteral':
         r = request_register()
-        num = node['value']
-        asm.append(gen_ins('mov r{} "{}"'.format(r, num)))
+        s = node['value']
+        asm.append(gen_ins('mov r{} "{}"'.format(r, s)))
         node['register'] = r
 
     elif t == 'BooleanLiteral':
@@ -747,6 +840,8 @@ def handle_node(node, named_block=None):
         
     else:
         print('{} node not implemented!'.format(t))
+        print(json.dumps(node, indent=2))
+        exit()
 
             
 def handle_block(block, base_node, root=False, preset_vars=None):
@@ -773,6 +868,13 @@ def handle_block(block, base_node, root=False, preset_vars=None):
     scope_stack.append(scope_id)
 
     # generate asm inside scope
+
+    # this round will declare functions
+    for node in block:
+        if node['type'] == 'FunctionDeclaration':
+            handle_node(node, declare_func_mode=True)
+
+    # this round will generate everything (and function bodies)
     for node in block:
         handle_node(node)
 
