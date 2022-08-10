@@ -1,3 +1,34 @@
+/*
+// testing 'this'
+var obj = {
+    outside() {
+        return foo();
+    },
+    insideProp: function() {
+        return this;
+    },
+    insideMember() {
+        return this;
+    }
+}
+function foo () {
+	return this;
+}
+
+console.log(obj.outside() == globalThis);
+console.log(obj.insideProp() == obj);
+console.log(obj.insideMember() == obj);
+
+/*
+function Car(make, model, year) {
+  this.make = make;
+  this.model = model;
+  this.year = year;
+}
+
+const car1 = new Car('Eagle', 'Talon TSi', 1993);
+console.log(car1.make);
+*/
 
 /*
 // break and continue nested test on for and while loops

@@ -214,7 +214,7 @@ def get_var_from_id(var_id):
                 return scopes[scope]['declared'][var_name]
     return None
 
-def search_scope_table(scope, name, scope_boundary='FunctionExpression'):
+def search_scope_table(scope, name, scope_boundary=None):
     '''
     find variable referenced by identifier name
 
@@ -260,11 +260,13 @@ def handle_node(node, named_block=None, declare_func_mode=False):
 
         # prepare function in compiler and VM:
 
-        if declare_func_mode:
+        # 'declare' function first if a function expression
+        # if expression, declare and handle at same time
+        if declare_func_mode or t == 'FunctionExpression':
             # step 1: get function label 
             func_name = None
-            func_label = 'anon'
-            func_end_label = 'anon_end'
+            func_label = get_name('anon')
+            func_end_label = get_name('anon_end')
             if node['id'] is not None:
                 func_name = node['id']['name']
                 func_label = get_name('func_start_'+func_name)
@@ -314,7 +316,8 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             node['func_end_label'] = func_end_label
             node['func_preset_vars'] = func_preset_vars
 
-            return
+            # TODO: this messy
+            if t == 'FunctionDeclaration': return
 
         func_name = node['func_name'] 
         func_label = node['func_label'] 
@@ -410,7 +413,6 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         free_register(func_reg)
         free_register(arg_reg)
         free_register(ctx_reg)
-
 
     elif t == 'VariableDeclaration':
         for decl in node['declarations']:
@@ -696,6 +698,11 @@ def handle_node(node, named_block=None, declare_func_mode=False):
 
         node['register'] = r
 
+    elif t == 'ThisExpression':
+        this_reg = request_register()
+        node['register'] = this_reg
+        asm.append(gen_ins('whatsthis r{}'.format(this_reg)))
+
     elif t == 'ObjectExpression':
         # we start with an empty object and load properties into one by one
         obj_reg = request_register()
@@ -730,6 +737,20 @@ def handle_node(node, named_block=None, declare_func_mode=False):
                 # to register holding
                 if key_isreg:
                     free_register(key)
+
+            elif prop['type'] == 'ObjectMethod':
+                # handle as property mapping to anonymous function 
+                fake_function = {
+                    'type': 'FunctionExpression',
+                    'id': None,
+                    'params': prop['params'],
+                    'body': prop['body']
+                }
+                handle_node(fake_function)
+                method_reg = fake_function['register']
+                k = prop['key']['name']
+                asm.append(gen_ins('setprop r{} "{}" r{}'.format(obj_reg, k, method_reg)))
+
             else:
                 print('{} not implemented!'.format(prop['type']))
 
@@ -863,8 +884,6 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         # restore backed up scope
         scope_stack = scope_stack_stack.pop()
         scopes = scopes_backup.pop()
-
-
 
     elif t == 'IfStatement':
         '''

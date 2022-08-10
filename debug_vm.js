@@ -15,6 +15,7 @@ let label_indexes = {}
 let reg_stack = []
 let registers = []
 let variables = [{}]
+let this_stack = [globalThis]
 
 let operations = {
 
@@ -28,12 +29,22 @@ let operations = {
         instruction_index += 1;
     },
 
+    whatsthis(args) {
+        let r = args[0].value
+        registers[r] = this_stack[this_stack.length - 1]
+        instruction_index += 1;
+    },
+
     create_func(args) {
         let func_start_label = args[0].value
         let arglist = registers[args[1].value]
         let r = args[2].value
 
         registers[r] = function() {
+
+            // push 'this' to the 'this stack'
+            this_stack.push(this);
+
             // backup then reset registers 
             reg_stack.push(registers);
             registers = [];
@@ -61,6 +72,9 @@ let operations = {
 
             // restore registers
             registers = reg_stack.pop();
+
+            // pop this from this_stack
+            this_stack.pop();
 
             // return!
             return rval;

@@ -111,6 +111,10 @@ mod <r1> <r2> <ans>
 nop
     no operation - do nothing
 
+whatsthis <r>
+    load current this into r
+    r must be a register
+
 createfunc 'label' <arglist> <r>
     create a wrapper function and store in r
     need label to start running vm at on function call and list of parameter
