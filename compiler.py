@@ -924,6 +924,64 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         scope_stack = scope_stack_stack.pop()
         scopes = scopes_backup.pop()
 
+    elif t == 'LogicalExpression':
+        '''
+        &&
+        r_left <left>
+        jnt :short_circuit
+        r_right <right>
+        jnt :short_circuit
+        mov r_ans true
+        jmp :end
+        :short_circuit
+        mov r_ans false
+        :end
+
+        ||
+        r_left <left>
+        jt :short_circuit
+        r_right <right>
+        jt :short_circuit
+        mov r_ans false 
+        jmp :end
+        :short_circuit
+        mov r_ans true
+        :end
+        '''
+
+        end = get_name('logic_end')
+        short_circuit = get_name('short_circuit')
+
+        r_ans = request_register()
+        op = node['operator']
+
+        short_circuit_result = False
+        short_circuit_jump = 'jnt'
+        if op == '&&':
+            pass # above 2 lines define values for &&
+        elif op == '||':
+            short_circuit_result = True
+            short_circuit_jump = 'jt'
+        else:
+            print('LogicalExpression operator {} not supported!'.format(op))
+
+        handle_node(node['left'])
+        r_left = node['left']['register']
+        asm.append(gen_ins('{} r{} :{}'.format(short_circuit_jump, r_left, short_circuit)))
+        handle_node(node['right'])
+        r_right = node['right']['register']
+        asm.append(gen_ins('{} r{} :{}'.format(short_circuit_jump, r_right, short_circuit)))
+        asm.append(gen_ins('mov r{} !{}'.format(r_ans, not short_circuit_result)))
+        asm.append(gen_ins('jmp :{}'.format(end)))
+        asm.append(gen_ins(':'+short_circuit))
+        asm.append(gen_ins('mov r{} !{}'.format(r_ans, short_circuit_result)))
+        asm.append(gen_ins(':'+end))
+
+        free_register(r_left)
+        free_register(r_right)
+
+        node['register'] = r_ans
+
     elif t == 'IfStatement':
         '''
         <test>
