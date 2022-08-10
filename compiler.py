@@ -29,6 +29,8 @@ todo:
 
 compiler todo:
     - hoisting vars
+
+NewExpression object return check
 '''
 
 DEBUG = False; DEBUGDEBUG = False
@@ -361,7 +363,11 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         else:
             asm.append(gen_ins('return None'))
 
-    elif t == 'CallExpression':
+    elif t in ['CallExpression', 'NewExpression']:
+        # BUG: whatever your constructor function returns will be returned as
+        # the result of the new statement (even if it is not an object)
+        # if it doesn't return anything thats ok
+
         result_reg = request_register()
 
         # generate arguments
@@ -373,14 +379,28 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             free_register(arg['register'])
 
         ctx_reg = None
+        r_new_obj = None
         if node['callee']['type'] != 'MemberExpression':
             # get function
             handle_node(node['callee'])
             func_reg = node['callee']['register']
 
-            # use global context
-            ctx_reg = request_register()
-            asm.append(gen_ins('global r{}'.format(ctx_reg)))
+            if t != 'NewExpression':
+                # use global context by default
+                ctx_reg = request_register()
+                asm.append(gen_ins('global r{}'.format(ctx_reg)))
+            else:
+                # use empty object as context for constructors
+                r_new_obj = request_register()
+                asm.append(gen_ins('obj r{}'.format(r_new_obj)))
+                ctx_reg = r_new_obj
+
+                # set __proto__ property to function.prototype
+                proto_prop = request_register()
+                asm.append(gen_ins('getprop r{} "prototype" r{}'.format(func_reg, proto_prop)))
+                asm.append(gen_ins('setprop r{} "__proto__" r{}'.format(ctx_reg, proto_prop)))
+                free_register(proto_prop)
+
         else:
             # we handle member expressions differently as we will use the object
             # as the context (e.g. for [].push, we need [] as the context)
@@ -405,6 +425,25 @@ def handle_node(node, named_block=None, declare_func_mode=False):
 
         # call function
         asm.append(gen_ins('call r{} r{} r{} r{}'.format(func_reg, arg_reg, ctx_reg, result_reg)))
+
+        if t == 'NewExpression':
+            # TODO: this is buggy
+            # need to check that an object is returned not just a non-null value
+            '''
+            <test>
+            jnt <test> :after
+            mov obj_reg result_reg 
+            :after
+            '''
+
+            after_null_test = get_name('after_null_test')
+            r_test_null = request_register()
+            asm.append(gen_ins('mov r{} None'.format(r_test_null)))
+            asm.append(gen_ins('eq r{} r{} r{}'.format(r_test_null, result_reg, r_test_null)))
+            asm.append(gen_ins('jnt r{} :{}'.format(r_test_null, after_null_test)))
+            asm.append(gen_ins('mov r{} r{}'.format(result_reg, r_new_obj)))
+            asm.append(gen_ins(':' + after_null_test))
+            free_register(r_new_obj)
 
         # return result register
         node['register'] = result_reg
@@ -918,7 +957,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         
     else:
         print('{} node not implemented!'.format(t))
-        print(json.dumps(node, indent=2))
+        #print(json.dumps(node, indent=2))
         #exit()
 
             
