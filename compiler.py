@@ -32,7 +32,7 @@ compiler todo:
 '''
 
 DEBUG = False; DEBUGDEBUG = False
-#DEBUG = True; DEBUGDEBUG = False
+DEBUG = True; DEBUGDEBUG = False
 #DEBUG = True; DEBUGDEBUG = True
 
 # if registers[x] == false or doesn't exist, register unclaimed
@@ -46,6 +46,7 @@ scope_stack_stack = []
 scope_stack = [None]
 curr_scope = lambda : scope_stack[len(scope_stack)-1]
 
+# TODO: document
 loopstack = []
 
 branch_counter = 0
@@ -552,6 +553,8 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             asm.append(gen_ins('mul r{} r{} r{}'.format(r_left, r_right, r_ans)))
         elif op == '/':
             asm.append(gen_ins('div r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '%':
+            asm.append(gen_ins('mod r{} r{} r{}'.format(r_left, r_right, r_ans)))
         elif op == '==':
             asm.append(gen_ins('eq r{} r{} r{}'.format(r_left, r_right, r_ans)))
         elif op == '!=':
@@ -750,6 +753,12 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         if node['computed']:
             free_register(node['property']['register'])
 
+    elif t == 'BreakStatement':
+        asm.append(gen_ins('jmp :{}'.format(loopstack[len(loopstack)-1]['loop_end'])))
+
+    elif t == 'ContinueStatement':
+        asm.append(gen_ins('jmp :{}'.format(loopstack[len(loopstack)-1]['continue_loc'])))
+
     elif t == 'ForStatement':
         '''
         <init>
@@ -764,7 +773,19 @@ def handle_node(node, named_block=None, declare_func_mode=False):
 
         start_for = get_name('start_for')
         end_for = get_name('end_for')
+        end_body = get_name('end_body')
 
+        # backup scope
+        scope_stack_stack.append(scope_stack[:])
+        scopes_backup.append(copy.deepcopy(scopes))
+
+        # bookkeep loop bounds for break and continue statements
+        loopstack.append({
+            'continue_loc': end_body,
+            'loop_end': end_for,
+        })
+
+        asm.append(gen_ins('push_store'))
         # run initialise block
         handle_node(node['init'])
         asm.append(gen_ins(':' +start_for))
@@ -775,25 +796,53 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         asm.append(gen_ins('jnt r{} :{}'.format(t_result, end_for)))
         # loop body
         handle_node(node['body'], named_block=t)
+        asm.append(gen_ins(':' + end_body))
         # update
         handle_node(node['update'])
         # restart loop
         asm.append(gen_ins('jmp :{}'.format(start_for)))
         asm.append(gen_ins(':{}'.format(end_for)))
+        asm.append(gen_ins('pop_store'))
+
+        # no longer in loop, remove bookkeeping info
+        loopstack.pop()
+
+        # restore backed up scope
+        scope_stack = scope_stack_stack.pop()
+        scopes = scopes_backup.pop()
 
 
     elif t == 'WhileStatement':
         '''
+        <create store>
         :start_while
         <test>
         jnt :end_while
         <body>
         jmp :start_while
         :end_while
+        <pop store>
         '''
+
+        # TODO: any problems, 
+        #   backup up registers too
+        #   call remove_all_var_registers on current scope
 
         start_while = get_name('start_while')
         end_while = get_name('end_while')
+
+        # first backup scope (will restore after loop is handled)
+        scope_stack_stack.append(scope_stack[:])
+        scopes_backup.append(copy.deepcopy(scopes))
+
+        # bookkeep loop bounds for break and continue statements
+        loopstack.append({
+            'continue_loc': start_while,
+            'loop_end': end_while,
+        })
+
+        # create store and start loop
+        asm.append(gen_ins('push_store'))
         asm.append(gen_ins(':'+start_while))
         # handle test
         handle_node(node['test'])
@@ -805,6 +854,16 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         # restart loop
         asm.append(gen_ins('jmp :{}'.format(start_while)))
         asm.append(gen_ins(':'+end_while))
+        # deconstruct store
+        asm.append(gen_ins('pop_store'))
+
+        # no longer in loop, remove bookkeeping info
+        loopstack.pop()
+
+        # restore backed up scope
+        scope_stack = scope_stack_stack.pop()
+        scopes = scopes_backup.pop()
+
 
 
     elif t == 'IfStatement':
@@ -841,7 +900,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
     else:
         print('{} node not implemented!'.format(t))
         print(json.dumps(node, indent=2))
-        exit()
+        #exit()
 
             
 def handle_block(block, base_node, root=False, preset_vars=None):

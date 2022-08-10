@@ -88,9 +88,6 @@ neq <r1> <r2> <ans>
     check if r1 != r2, store in ans
     r1, r2 and ans must be registers
 
-nop
-    no operation - do nothing
-
 ge <r1> <r2> <ans>
     calc r1 > r2, store in ans
     r1, r2 and ans must be registers
@@ -106,6 +103,13 @@ le <r1> <r2> <ans>
 leeq
     calc r1 <= r2, store in ans
     r1, r2 and ans must be registers
+
+mod <r1> <r2> <ans>
+    calc r1 % r2, store in ans
+    r1, r2 and ans must be registers
+
+nop
+    no operation - do nothing
 
 createfunc 'label' <arglist> <r>
     create a wrapper function and store in r
@@ -128,6 +132,12 @@ call <function> <args> <context> <result>
     args must be a register with a list of arguments
     context must be a register
     result must be a register
+
+push_store
+    pushes new variable store
+
+pop_store
+    pops current variable store
 
 regex <pattern> <flags> <reg>
     create regex object and store in reg

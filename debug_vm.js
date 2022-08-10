@@ -18,6 +18,16 @@ let variables = [{}]
 
 let operations = {
 
+    push_store(args) {
+        variables.push({});
+        instruction_index += 1;
+    },
+
+    pop_store(args) {
+        variables.pop();
+        instruction_index += 1;
+    },
+
     create_func(args) {
         let func_start_label = args[0].value
         let arglist = registers[args[1].value]
@@ -234,6 +244,7 @@ let operations = {
         instruction_index += 1;
     },
 
+
     ge(args) {
         let r1 = registers[args[0].value];
         let r2 = registers[args[1].value];
@@ -263,6 +274,22 @@ let operations = {
         let r2 = registers[args[1].value];
         let ans = args[2].value;
         registers[ans] = r1 <= r2;
+        instruction_index += 1;
+    },
+
+    neq(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 != r2;
+        instruction_index += 1;
+    },
+
+    mod(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 % r2;
         instruction_index += 1;
     },
 
@@ -312,7 +339,7 @@ function run(args) {
             return rval
         }
 
-        //console.log(ins.op);
+        //console.log(ins.string_repr);
         operations[ins.op](ins.args);
         //console.log(registers, variables);
     }
