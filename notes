@@ -88,6 +88,14 @@ neq <r1> <r2> <ans>
     check if r1 != r2, store in ans
     r1, r2 and ans must be registers
 
+eqt <r1> <r2> <ans>
+    check if r1 === r2, store in ans
+    r1, r2 and ans must be registers
+
+neqt <r1> <r2> <ans>
+    check if r1 !== r2, store in ans
+    r1, r2 and ans must be registers
+
 ge <r1> <r2> <ans>
     calc r1 > r2, store in ans
     r1, r2 and ans must be registers
@@ -107,6 +115,61 @@ leeq
 mod <r1> <r2> <ans>
     calc r1 % r2, store in ans
     r1, r2 and ans must be registers
+
+shl <r1> <r2> <ans>
+    calc r1 << r2, store in ans
+    r1, r2 and ans must be registers
+
+shr <r1> <r2> <ans>
+    calc r1 >> r2, store in ans
+    r1, r2 and ans must be registers
+
+ushr <r1> <r2> <ans>
+    calc r1 >>> r2, store in ans
+    r1, r2 and ans must be registers
+
+bit_and <r1> <r2> <ans>
+    calc r1 & r2, store in ans
+    r1, r2 and ans must be registers
+
+bit_or <r1> <r2> <ans>
+    calc r1 | r2, store in ans
+    r1, r2 and ans must be registers
+
+xor <r1> <r2> <ans>
+    calc r1 ^ r2, store in ans
+    r1, r2 and ans must be registers
+
+pow <r1> <r2> <ans>
+    calc r1 ** r2, store in ans
+
+inside <r1> <r2> <ans>
+    calc r1 in r2, store in ans
+    r1, r2 and ans must be registers
+
+check_instance <r1> <r2> <ans>
+    calc r1 in r2, store in ans
+    r1, r2 and ans must be registers
+
+unary_plus <r1> <ans>
+    calc +r1, store in ans
+    r2 and ans must be registers
+
+unary_neg <r1> <ans>
+    calc -r1, store in ans
+    r2 and ans must be registers
+
+unary_not <r1> <ans>
+    calc !r1, store in ans
+    r2 and ans must be registers
+
+unary_bit_not <r1> <ans>
+    calc !r1, store in ans
+    r2 and ans must be registers
+
+unary_typeof <r1> <ans>
+    calc typeof r1, store in ans
+    r2 and ans must be registers
 
 nop
     no operation - do nothing

@@ -1,3 +1,6 @@
+/*
+"void" | "delete" | "throw"
+*/
 
 /*
 // logical operators test

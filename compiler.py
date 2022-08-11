@@ -12,25 +12,21 @@ ast_file = open(sys.argv[1])
 ast = json.load(ast_file)
 
 '''
+Unsupported:
+    - void, delete and throw statements
+    - try / catch / throw
+    - closures (functions as arguments, return values, callbacks and anonymous
+      functions supported)
+    - arrow functions
+    - classes / super ('this' and 'new' statement supported)
+    - spread operator
+    - sequence expressions
+    - do expression
+
 todo: 
-    - try stack
-    - loop stack
-    - documentation on:
-        - data stores:
-            - symbols
-            - registers
-            - asm
-        - compiler
-            - how expressions are handled
-    - op support
-        - array arguments
-        - floats
-    - debug mode for get_name
-
-compiler todo:
-    - hoisting vars
-
-NewExpression object return check
+    - error messages?
+    - var hoisting?
+    - try / catch
 '''
 
 DEBUG = False; DEBUGDEBUG = False
@@ -427,22 +423,22 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         asm.append(gen_ins('call r{} r{} r{} r{}'.format(func_reg, arg_reg, ctx_reg, result_reg)))
 
         if t == 'NewExpression':
-            # TODO: this is buggy
-            # need to check that an object is returned not just a non-null value
             '''
-            <test>
-            jnt <test> :after
-            mov obj_reg result_reg 
+            <result_is_object>
+            jt <result_is_object> :after
+            mov result_reg obj_reg
             :after
             '''
 
-            after_null_test = get_name('after_null_test')
-            r_test_null = request_register()
-            asm.append(gen_ins('mov r{} None'.format(r_test_null)))
-            asm.append(gen_ins('eq r{} r{} r{}'.format(r_test_null, result_reg, r_test_null)))
-            asm.append(gen_ins('jnt r{} :{}'.format(r_test_null, after_null_test)))
+            after_test = get_name('after_test')
+            r_test = request_register()
+
+            asm.append(gen_ins('global r{}'.format(r_test)))
+            asm.append(gen_ins('getprop r{} "Object" r{}'.format(r_test, r_test)))
+            asm.append(gen_ins('check_instance r{} r{} r{}'.format(result_reg, r_test, r_test)))
+            asm.append(gen_ins('jt r{} :{}'.format(r_test, after_test)))
             asm.append(gen_ins('mov r{} r{}'.format(result_reg, r_new_obj)))
-            asm.append(gen_ins(':' + after_null_test))
+            asm.append(gen_ins(':' + after_test))
             free_register(r_new_obj)
 
         # return result register
@@ -569,7 +565,15 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         op = node['operator']
 
         if op == '-':
-            asm.append(gen_ins('sub #0 r{} r{}'.format(r, r_result)))
+            asm.append(gen_ins('unary_neg r{} r{}'.format(r, r_result)))
+        elif op == '+':
+            asm.append(gen_ins('unary_plus r{} r{}'.format(r, r_result)))
+        elif op == '!':
+            asm.append(gen_ins('unary_not r{} r{}'.format(r, r_result)))
+        elif op == '~':
+            asm.append(gen_ins('unary_bit_not r{} r{}'.format(r, r_result)))
+        elif op == 'typeof':
+            asm.append(gen_ins('unary_typeof r{} r{}'.format(r, r_result)))
         else:
             print('UnaryExpression operator {} not supported!'.format(op))
 
@@ -596,10 +600,28 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             asm.append(gen_ins('div r{} r{} r{}'.format(r_left, r_right, r_ans)))
         elif op == '%':
             asm.append(gen_ins('mod r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '**':
+            asm.append(gen_ins('pow r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '|':
+            asm.append(gen_ins('bit_or r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '&':
+            asm.append(gen_ins('bit_and r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '^':
+            asm.append(gen_ins('xor r{} r{} r{}'.format(r_left, r_right, r_ans)))
         elif op == '==':
             asm.append(gen_ins('eq r{} r{} r{}'.format(r_left, r_right, r_ans)))
         elif op == '!=':
             asm.append(gen_ins('neq r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '===':
+            asm.append(gen_ins('eqt r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '!==':
+            asm.append(gen_ins('neqt r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '<<':
+            asm.append(gen_ins('shl r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '>>':
+            asm.append(gen_ins('shr r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == '>>>':
+            asm.append(gen_ins('ushr r{} r{} r{}'.format(r_left, r_right, r_ans)))
         elif op == '>':
             asm.append(gen_ins('ge r{} r{} r{}'.format(r_left, r_right, r_ans)))
         elif op == '>=':
@@ -608,6 +630,10 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             asm.append(gen_ins('le r{} r{} r{}'.format(r_left, r_right, r_ans)))
         elif op == '<=':
             asm.append(gen_ins('leeq r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == 'in':
+            asm.append(gen_ins('inside r{} r{} r{}'.format(r_left, r_right, r_ans)))
+        elif op == 'instanceof':
+            asm.append(gen_ins('check_instance r{} r{} r{}'.format(r_left, r_right, r_ans)))
         else:
             print('BinaryExpression operator {} not supported!'.format(op))
 

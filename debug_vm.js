@@ -258,6 +258,21 @@ let operations = {
         instruction_index += 1;
     },
 
+    eqt(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 === r2;
+        instruction_index += 1;
+    },
+
+    neqt(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 !== r2;
+        instruction_index += 1;
+    },
 
     ge(args) {
         let r1 = registers[args[0].value];
@@ -304,6 +319,113 @@ let operations = {
         let r2 = registers[args[1].value];
         let ans = args[2].value;
         registers[ans] = r1 % r2;
+        instruction_index += 1;
+    },
+
+    shl(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 << r2;
+        instruction_index += 1;
+    },
+
+    shr(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 >> r2;
+        instruction_index += 1;
+    },
+
+    ushr(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 >>> r2;
+        instruction_index += 1;
+    },
+
+    pow(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 ** r2;
+        instruction_index += 1;
+    },
+
+    bit_or(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 | r2;
+        instruction_index += 1;
+    },
+
+    bit_and(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 & r2;
+        instruction_index += 1;
+    },
+
+    xor(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 ^ r2;
+        instruction_index += 1;
+    },
+
+    inside(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 in r2;
+        instruction_index += 1;
+    },
+
+    check_instance(args) {
+        let r1 = registers[args[0].value];
+        let r2 = registers[args[1].value];
+        let ans = args[2].value;
+        registers[ans] = r1 instanceof r2;
+        instruction_index += 1;
+    },
+
+    unary_plus(args) {
+        let r1 = registers[args[0].value];
+        let ans = args[1].value;
+        registers[ans] = +r1;
+        instruction_index += 1;
+    },
+
+    unary_neg(args) {
+        let r1 = registers[args[0].value];
+        let ans = args[1].value;
+        registers[ans] = -r1;
+        instruction_index += 1;
+    },
+
+    unary_not(args) {
+        let r1 = registers[args[0].value];
+        let ans = args[1].value;
+        registers[ans] = !r1;
+        instruction_index += 1;
+    },
+
+    unary_bit_not(args) {
+        let r1 = registers[args[0].value];
+        let ans = args[1].value;
+        registers[ans] = ~r1;
+        instruction_index += 1;
+    },
+
+    unary_typeof(args) {
+        let r1 = registers[args[0].value];
+        let ans = args[1].value;
+        registers[ans] = typeof r1;
         instruction_index += 1;
     },
 
