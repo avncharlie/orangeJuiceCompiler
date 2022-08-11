@@ -1,0 +1,2079 @@
+arr r3
+create_func :func_start_runRichards r3 r4
+setvar "func_runRichards" r4
+arr r5
+create_func :func_start_Scheduler r5 r6
+setvar "func_Scheduler" r6
+arr r7
+arrpush r7 "link"
+arrpush r7 "id"
+arrpush r7 "priority"
+arrpush r7 "queue"
+arrpush r7 "task"
+create_func :func_start_TaskControlBlock r7 r8
+setvar "func_TaskControlBlock" r8
+arr r9
+arrpush r9 "scheduler"
+arrpush r9 "v1"
+arrpush r9 "count"
+create_func :func_start_IdleTask r9 r10
+setvar "func_IdleTask" r10
+arr r11
+arrpush r11 "scheduler_9"
+create_func :func_start_DeviceTask r11 r12
+setvar "func_DeviceTask" r12
+arr r13
+arrpush r13 "scheduler_12"
+arrpush r13 "v1_13"
+arrpush r13 "v2"
+create_func :func_start_WorkerTask r13 r14
+setvar "func_WorkerTask" r14
+arr r15
+arrpush r15 "scheduler_16"
+create_func :func_start_HandlerTask r15 r16
+setvar "func_HandlerTask" r16
+arr r17
+arrpush r17 "link_19"
+arrpush r17 "id_20"
+arrpush r17 "kind"
+create_func :func_start_Packet r17 r18
+setvar "func_Packet" r18
+mov r19 #1000
+setvar "var_COUNT" r19
+mov r20 #2322
+setvar "var_EXPECTED_QUEUE_COUNT" r20
+mov r21 #928
+setvar "var_EXPECTED_HOLD_COUNT" r21
+mov r22 #0
+setvar "var_ID_IDLE" r22
+mov r23 #1
+setvar "var_ID_WORKER" r23
+mov r24 #2
+setvar "var_ID_HANDLER_A" r24
+mov r25 #3
+setvar "var_ID_HANDLER_B" r25
+mov r26 #4
+setvar "var_ID_DEVICE_A" r26
+mov r27 #5
+setvar "var_ID_DEVICE_B" r27
+mov r28 #6
+setvar "var_NUMBER_OF_IDS" r28
+mov r29 #0
+setvar "var_KIND_DEVICE" r29
+mov r30 #1
+setvar "var_KIND_WORK" r30
+mov r31 #0
+setvar "var_STATE_RUNNING" r31
+mov r32 #1
+setvar "var_STATE_RUNNABLE" r32
+mov r33 #2
+setvar "var_STATE_SUSPENDED" r33
+mov r34 #4
+setvar "var_STATE_HELD" r34
+bit_or r33 r32 r35
+setvar "var_STATE_SUSPENDED_RUNNABLE" r35
+unary_bit_not r34 r36
+setvar "var_STATE_NOT_HELD" r36
+mov r37 #4
+setvar "var_DATA_SIZE" r37
+jmp :func_end_runRichards
+:func_start_runRichards
+arr r4
+getvar "func_Scheduler" r5
+obj r6
+getprop r5 "prototype" r7
+setprop r6 "__proto__" r7
+call r5 r4 r6 r3
+global r7
+getprop r7 "Object" r7
+check_instance r3 r7 r7
+jt r7 :after_test
+mov r3 r6
+:after_test
+setvar "var_scheduler" r3
+arr r5
+mov r6 None
+arrpush r5 r6
+getvar "var_ID_WORKER" r6
+arrpush r5 r6
+getvar "var_KIND_WORK" r6
+arrpush r5 r6
+getvar "func_Packet" r6
+obj r8
+getprop r6 "prototype" r9
+setprop r8 "__proto__" r9
+call r6 r5 r8 r4
+global r9
+getprop r9 "Object" r9
+check_instance r4 r9 r9
+jt r9 :after_test_22
+mov r4 r8
+:after_test_22
+setvar "var_queue" r4
+arr r6
+getvar "func_Scheduler" r8
+obj r10
+getprop r8 "prototype" r11
+setprop r10 "__proto__" r11
+call r8 r6 r10 r5
+global r11
+getprop r11 "Object" r11
+check_instance r5 r11 r11
+jt r11 :after_test_23
+mov r5 r10
+:after_test_23
+mov r3 r5
+setvar "var_scheduler" r3
+arr r6
+getvar "var_ID_IDLE" r8
+arrpush r6 r8
+mov r8 #0
+arrpush r6 r8
+mov r8 None
+arrpush r6 r8
+getvar "var_COUNT" r8
+arrpush r6 r8
+getprop r3 "addIdleTask" r8
+call r8 r6 r3 r5
+arr r6
+mov r8 None
+arrpush r6 r8
+getvar "var_ID_WORKER" r8
+arrpush r6 r8
+getvar "var_KIND_WORK" r8
+arrpush r6 r8
+getvar "func_Packet" r8
+obj r10
+getprop r8 "prototype" r12
+setprop r10 "__proto__" r12
+call r8 r6 r10 r5
+global r12
+getprop r12 "Object" r12
+check_instance r5 r12 r12
+jt r12 :after_test_24
+mov r5 r10
+:after_test_24
+mov r4 r5
+setvar "var_queue" r4
+arr r6
+arrpush r6 r4
+getvar "var_ID_WORKER" r8
+arrpush r6 r8
+getvar "var_KIND_WORK" r8
+arrpush r6 r8
+getvar "func_Packet" r8
+obj r10
+getprop r8 "prototype" r13
+setprop r10 "__proto__" r13
+call r8 r6 r10 r5
+global r13
+getprop r13 "Object" r13
+check_instance r5 r13 r13
+jt r13 :after_test_25
+mov r5 r10
+:after_test_25
+mov r4 r5
+setvar "var_queue" r4
+arr r6
+getvar "var_ID_WORKER" r8
+arrpush r6 r8
+mov r8 #1000
+arrpush r6 r8
+arrpush r6 r4
+getprop r3 "addWorkerTask" r8
+call r8 r6 r3 r5
+arr r6
+mov r8 None
+arrpush r6 r8
+getvar "var_ID_DEVICE_A" r8
+arrpush r6 r8
+getvar "var_KIND_DEVICE" r8
+arrpush r6 r8
+getvar "func_Packet" r8
+obj r10
+getprop r8 "prototype" r14
+setprop r10 "__proto__" r14
+call r8 r6 r10 r5
+global r14
+getprop r14 "Object" r14
+check_instance r5 r14 r14
+jt r14 :after_test_26
+mov r5 r10
+:after_test_26
+mov r4 r5
+setvar "var_queue" r4
+arr r6
+arrpush r6 r4
+getvar "var_ID_DEVICE_A" r8
+arrpush r6 r8
+getvar "var_KIND_DEVICE" r8
+arrpush r6 r8
+getvar "func_Packet" r8
+obj r10
+getprop r8 "prototype" r15
+setprop r10 "__proto__" r15
+call r8 r6 r10 r5
+global r15
+getprop r15 "Object" r15
+check_instance r5 r15 r15
+jt r15 :after_test_27
+mov r5 r10
+:after_test_27
+mov r4 r5
+setvar "var_queue" r4
+arr r6
+arrpush r6 r4
+getvar "var_ID_DEVICE_A" r8
+arrpush r6 r8
+getvar "var_KIND_DEVICE" r8
+arrpush r6 r8
+getvar "func_Packet" r8
+obj r10
+getprop r8 "prototype" r16
+setprop r10 "__proto__" r16
+call r8 r6 r10 r5
+global r16
+getprop r16 "Object" r16
+check_instance r5 r16 r16
+jt r16 :after_test_28
+mov r5 r10
+:after_test_28
+mov r4 r5
+setvar "var_queue" r4
+arr r6
+getvar "var_ID_HANDLER_A" r8
+arrpush r6 r8
+mov r8 #2000
+arrpush r6 r8
+arrpush r6 r4
+getprop r3 "addHandlerTask" r8
+call r8 r6 r3 r5
+arr r6
+mov r8 None
+arrpush r6 r8
+getvar "var_ID_DEVICE_B" r8
+arrpush r6 r8
+getvar "var_KIND_DEVICE" r8
+arrpush r6 r8
+getvar "func_Packet" r8
+obj r10
+getprop r8 "prototype" r17
+setprop r10 "__proto__" r17
+call r8 r6 r10 r5
+global r17
+getprop r17 "Object" r17
+check_instance r5 r17 r17
+jt r17 :after_test_29
+mov r5 r10
+:after_test_29
+mov r4 r5
+setvar "var_queue" r4
+arr r6
+arrpush r6 r4
+getvar "var_ID_DEVICE_B" r8
+arrpush r6 r8
+getvar "var_KIND_DEVICE" r8
+arrpush r6 r8
+getvar "func_Packet" r8
+obj r10
+getprop r8 "prototype" r18
+setprop r10 "__proto__" r18
+call r8 r6 r10 r5
+global r18
+getprop r18 "Object" r18
+check_instance r5 r18 r18
+jt r18 :after_test_30
+mov r5 r10
+:after_test_30
+mov r4 r5
+setvar "var_queue" r4
+arr r6
+arrpush r6 r4
+getvar "var_ID_DEVICE_B" r8
+arrpush r6 r8
+getvar "var_KIND_DEVICE" r8
+arrpush r6 r8
+getvar "func_Packet" r8
+obj r10
+getprop r8 "prototype" r19
+setprop r10 "__proto__" r19
+call r8 r6 r10 r5
+global r19
+getprop r19 "Object" r19
+check_instance r5 r19 r19
+jt r19 :after_test_31
+mov r5 r10
+:after_test_31
+mov r4 r5
+setvar "var_queue" r4
+arr r6
+getvar "var_ID_HANDLER_B" r8
+arrpush r6 r8
+mov r8 #3000
+arrpush r6 r8
+arrpush r6 r4
+getprop r3 "addHandlerTask" r8
+call r8 r6 r3 r5
+arr r6
+getvar "var_ID_DEVICE_A" r8
+arrpush r6 r8
+mov r8 #4000
+arrpush r6 r8
+mov r8 None
+arrpush r6 r8
+getprop r3 "addDeviceTask" r8
+call r8 r6 r3 r5
+arr r6
+getvar "var_ID_DEVICE_B" r8
+arrpush r6 r8
+mov r8 #5000
+arrpush r6 r8
+mov r8 None
+arrpush r6 r8
+getprop r3 "addDeviceTask" r8
+call r8 r6 r3 r5
+arr r6
+getprop r3 "schedule" r8
+call r8 r6 r3 r5
+getprop r3 "queueCount" r3
+getvar "var_EXPECTED_QUEUE_COUNT" r6
+neq r3 r6 r8
+jt r8 :short_circuit
+getvar "var_scheduler" r3
+getprop r3 "holdCount" r3
+getvar "var_EXPECTED_HOLD_COUNT" r6
+neq r3 r6 r10
+jt r10 :short_circuit
+mov r5 !False
+jmp :logic_end
+:short_circuit
+mov r5 !True
+:logic_end
+jnt r5 :after_consequent
+mov r3 "Error during execution: queueCount = "
+getvar "var_scheduler" r6
+getprop r6 "queueCount" r6
+add r3 r6 r8
+mov r3 ", holdCount = "
+add r8 r3 r6
+getvar "var_scheduler" r3
+getprop r3 "holdCount" r3
+add r6 r3 r8
+mov r3 "."
+add r8 r3 r6
+setvar "var_msg" r6
+mov r3 "Error during execution: queueCount = "
+getvar "var_scheduler" r8
+getprop r8 "queueCount" r8
+add r3 r8 r10
+mov r3 ", holdCount = "
+add r10 r3 r8
+getvar "var_scheduler" r3
+getprop r3 "holdCount" r3
+add r8 r3 r10
+mov r3 "."
+add r10 r3 r8
+mov r6 r8
+setvar "var_msg" r6
+arr r8
+arrpush r8 r6
+global r10
+getprop r10 "console" r10
+getprop r10 "log" r20
+call r20 r8 r10 r3
+delvar "var_msg"
+jmp :end_if
+:after_consequent
+arr r6
+mov r8 "Richards successful!"
+arrpush r6 r8
+global r8
+getprop r8 "console" r8
+getprop r8 "log" r10
+call r10 r6 r8 r3
+:end_if
+delvar "var_scheduler"
+delvar "var_queue"
+return None
+:func_end_runRichards
+mov r38 #1000
+mov r19 r38
+setvar "var_COUNT" r19
+mov r38 #2322
+mov r20 r38
+setvar "var_EXPECTED_QUEUE_COUNT" r20
+mov r38 #928
+mov r21 r38
+setvar "var_EXPECTED_HOLD_COUNT" r21
+jmp :func_end_Scheduler
+:func_start_Scheduler
+whatsthis r3
+getprop r3 "queueCount" r3
+mov r4 #0
+mov r3 r4
+whatsthis r5
+setprop r5 "queueCount" r3
+whatsthis r3
+getprop r3 "holdCount" r3
+mov r4 #0
+mov r3 r4
+whatsthis r5
+setprop r5 "holdCount" r3
+whatsthis r3
+getprop r3 "blocks" r3
+arr r5
+getvar "var_NUMBER_OF_IDS" r6
+arrpush r5 r6
+global r6
+getprop r6 "Array" r6
+obj r7
+getprop r6 "prototype" r8
+setprop r7 "__proto__" r8
+call r6 r5 r7 r4
+global r8
+getprop r8 "Object" r8
+check_instance r4 r8 r8
+jt r8 :after_test_35
+mov r4 r7
+:after_test_35
+mov r3 r4
+whatsthis r5
+setprop r5 "blocks" r3
+whatsthis r3
+getprop r3 "list" r3
+mov r4 None
+mov r3 r4
+whatsthis r5
+setprop r5 "list" r3
+whatsthis r3
+getprop r3 "currentTcb" r3
+mov r4 None
+mov r3 r4
+whatsthis r5
+setprop r5 "currentTcb" r3
+whatsthis r3
+getprop r3 "currentId" r3
+mov r4 None
+mov r3 r4
+whatsthis r5
+setprop r5 "currentId" r3
+return None
+:func_end_Scheduler
+mov r38 #0
+mov r22 r38
+setvar "var_ID_IDLE" r22
+mov r38 #1
+mov r23 r38
+setvar "var_ID_WORKER" r23
+mov r38 #2
+mov r24 r38
+setvar "var_ID_HANDLER_A" r24
+mov r38 #3
+mov r25 r38
+setvar "var_ID_HANDLER_B" r25
+mov r38 #4
+mov r26 r38
+setvar "var_ID_DEVICE_A" r26
+mov r38 #5
+mov r27 r38
+setvar "var_ID_DEVICE_B" r27
+mov r38 #6
+mov r28 r38
+setvar "var_NUMBER_OF_IDS" r28
+mov r38 #0
+mov r29 r38
+setvar "var_KIND_DEVICE" r29
+mov r38 #1
+mov r30 r38
+setvar "var_KIND_WORK" r30
+getprop r6 "prototype" r6
+getprop r6 "addIdleTask" r6
+arr r38
+arrpush r38 "id_38"
+arrpush r38 "priority_39"
+arrpush r38 "queue_40"
+arrpush r38 "count_41"
+create_func :anon_36 r38 r39
+jmp :anon_end_37
+:anon_36
+arr r4
+getvar "id_38" r5
+arrpush r4 r5
+getvar "priority_39" r5
+arrpush r4 r5
+getvar "queue_40" r5
+arrpush r4 r5
+arr r6
+whatsthis r7
+arrpush r6 r7
+mov r7 #1
+arrpush r6 r7
+getvar "count_41" r7
+arrpush r6 r7
+getvar "func_IdleTask" r7
+obj r8
+getprop r7 "prototype" r9
+setprop r8 "__proto__" r9
+call r7 r6 r8 r5
+global r9
+getprop r9 "Object" r9
+check_instance r5 r9 r9
+jt r9 :after_test_43
+mov r5 r8
+:after_test_43
+arrpush r4 r5
+whatsthis r5
+getprop r5 "addRunningTask" r6
+call r6 r4 r5 r3
+delvar "id_38"
+delvar "priority_39"
+delvar "queue_40"
+delvar "count_41"
+return None
+:anon_end_37
+mov r6 r39
+getvar "func_Scheduler" r40
+getprop r40 "prototype" r40
+setprop r40 "addIdleTask" r6
+getvar "func_Scheduler" r6
+getprop r6 "prototype" r6
+getprop r6 "addWorkerTask" r6
+arr r39
+arrpush r39 "id_46"
+arrpush r39 "priority_47"
+arrpush r39 "queue_48"
+create_func :anon_44 r39 r40
+jmp :anon_end_45
+:anon_44
+arr r4
+getvar "id_46" r5
+arrpush r4 r5
+getvar "priority_47" r5
+arrpush r4 r5
+getvar "queue_48" r5
+arrpush r4 r5
+arr r6
+whatsthis r7
+arrpush r6 r7
+getvar "var_ID_HANDLER_A" r7
+arrpush r6 r7
+mov r7 #0
+arrpush r6 r7
+getvar "func_WorkerTask" r7
+obj r8
+getprop r7 "prototype" r9
+setprop r8 "__proto__" r9
+call r7 r6 r8 r5
+global r9
+getprop r9 "Object" r9
+check_instance r5 r9 r9
+jt r9 :after_test_50
+mov r5 r8
+:after_test_50
+arrpush r4 r5
+whatsthis r5
+getprop r5 "addTask" r6
+call r6 r4 r5 r3
+delvar "id_46"
+delvar "priority_47"
+delvar "queue_48"
+return None
+:anon_end_45
+mov r6 r40
+getvar "func_Scheduler" r41
+getprop r41 "prototype" r41
+setprop r41 "addWorkerTask" r6
+getvar "func_Scheduler" r6
+getprop r6 "prototype" r6
+getprop r6 "addHandlerTask" r6
+arr r40
+arrpush r40 "id_53"
+arrpush r40 "priority_54"
+arrpush r40 "queue_55"
+create_func :anon_51 r40 r41
+jmp :anon_end_52
+:anon_51
+arr r4
+getvar "id_53" r5
+arrpush r4 r5
+getvar "priority_54" r5
+arrpush r4 r5
+getvar "queue_55" r5
+arrpush r4 r5
+arr r6
+whatsthis r7
+arrpush r6 r7
+getvar "func_HandlerTask" r7
+obj r8
+getprop r7 "prototype" r9
+setprop r8 "__proto__" r9
+call r7 r6 r8 r5
+global r9
+getprop r9 "Object" r9
+check_instance r5 r9 r9
+jt r9 :after_test_57
+mov r5 r8
+:after_test_57
+arrpush r4 r5
+whatsthis r5
+getprop r5 "addTask" r6
+call r6 r4 r5 r3
+delvar "id_53"
+delvar "priority_54"
+delvar "queue_55"
+return None
+:anon_end_52
+mov r6 r41
+getvar "func_Scheduler" r42
+getprop r42 "prototype" r42
+setprop r42 "addHandlerTask" r6
+getvar "func_Scheduler" r6
+getprop r6 "prototype" r6
+getprop r6 "addDeviceTask" r6
+arr r41
+arrpush r41 "id_60"
+arrpush r41 "priority_61"
+arrpush r41 "queue_62"
+create_func :anon_58 r41 r42
+jmp :anon_end_59
+:anon_58
+arr r4
+getvar "id_60" r5
+arrpush r4 r5
+getvar "priority_61" r5
+arrpush r4 r5
+getvar "queue_62" r5
+arrpush r4 r5
+arr r6
+whatsthis r7
+arrpush r6 r7
+getvar "func_DeviceTask" r7
+obj r8
+getprop r7 "prototype" r9
+setprop r8 "__proto__" r9
+call r7 r6 r8 r5
+global r9
+getprop r9 "Object" r9
+check_instance r5 r9 r9
+jt r9 :after_test_64
+mov r5 r8
+:after_test_64
+arrpush r4 r5
+whatsthis r5
+getprop r5 "addTask" r6
+call r6 r4 r5 r3
+delvar "id_60"
+delvar "priority_61"
+delvar "queue_62"
+return None
+:anon_end_59
+mov r6 r42
+getvar "func_Scheduler" r43
+getprop r43 "prototype" r43
+setprop r43 "addDeviceTask" r6
+getvar "func_Scheduler" r6
+getprop r6 "prototype" r6
+getprop r6 "addRunningTask" r6
+arr r42
+arrpush r42 "id_67"
+arrpush r42 "priority_68"
+arrpush r42 "queue_69"
+arrpush r42 "task_70"
+create_func :anon_65 r42 r43
+jmp :anon_end_66
+:anon_65
+arr r4
+getvar "id_67" r5
+arrpush r4 r5
+getvar "priority_68" r5
+arrpush r4 r5
+getvar "queue_69" r5
+arrpush r4 r5
+getvar "task_70" r5
+arrpush r4 r5
+whatsthis r5
+getprop r5 "addTask" r6
+call r6 r4 r5 r3
+arr r4
+whatsthis r5
+getprop r5 "currentTcb" r5
+getprop r5 "setRunning" r6
+call r6 r4 r5 r3
+delvar "id_67"
+delvar "priority_68"
+delvar "queue_69"
+delvar "task_70"
+return None
+:anon_end_66
+mov r6 r43
+getvar "func_Scheduler" r44
+getprop r44 "prototype" r44
+setprop r44 "addRunningTask" r6
+getvar "func_Scheduler" r6
+getprop r6 "prototype" r6
+getprop r6 "addTask" r6
+arr r43
+arrpush r43 "id_74"
+arrpush r43 "priority_75"
+arrpush r43 "queue_76"
+arrpush r43 "task_77"
+create_func :anon_72 r43 r44
+jmp :anon_end_73
+:anon_72
+whatsthis r3
+getprop r3 "currentTcb" r3
+arr r5
+whatsthis r6
+getprop r6 "list" r6
+arrpush r5 r6
+getvar "id_74" r6
+arrpush r5 r6
+getvar "priority_75" r6
+arrpush r5 r6
+getvar "queue_76" r6
+arrpush r5 r6
+getvar "task_77" r6
+arrpush r5 r6
+getvar "func_TaskControlBlock" r6
+obj r7
+getprop r6 "prototype" r8
+setprop r7 "__proto__" r8
+call r6 r5 r7 r4
+global r8
+getprop r8 "Object" r8
+check_instance r4 r8 r8
+jt r8 :after_test_79
+mov r4 r7
+:after_test_79
+mov r3 r4
+whatsthis r5
+setprop r5 "currentTcb" r3
+whatsthis r3
+getprop r3 "list" r3
+whatsthis r4
+getprop r4 "currentTcb" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "list" r3
+whatsthis r3
+getprop r3 "blocks" r3
+getvar "id_74" r4
+getprop r3 r4 r3
+whatsthis r4
+getprop r4 "currentTcb" r4
+mov r3 r4
+whatsthis r5
+getprop r5 "blocks" r5
+getvar "id_74" r6
+setprop r5 r6 r3
+delvar "id_74"
+delvar "priority_75"
+delvar "queue_76"
+delvar "task_77"
+return None
+:anon_end_73
+mov r6 r44
+getvar "func_Scheduler" r45
+getprop r45 "prototype" r45
+setprop r45 "addTask" r6
+getvar "func_Scheduler" r6
+getprop r6 "prototype" r6
+getprop r6 "schedule" r6
+arr r44
+create_func :anon_80 r44 r45
+jmp :anon_end_81
+:anon_80
+whatsthis r3
+getprop r3 "currentTcb" r3
+whatsthis r4
+getprop r4 "list" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "currentTcb" r3
+push_store
+:start_while
+whatsthis r3
+getprop r3 "currentTcb" r3
+mov r4 None
+neq r3 r4 r5
+jnt r5 :end_while
+arr r4
+whatsthis r6
+getprop r6 "currentTcb" r6
+getprop r6 "isHeldOrSuspended" r7
+call r7 r4 r6 r3
+jnt r3 :after_consequent_84
+whatsthis r4
+getprop r4 "currentTcb" r4
+whatsthis r6
+getprop r6 "currentTcb" r6
+getprop r6 "link" r6
+mov r4 r6
+whatsthis r7
+setprop r7 "currentTcb" r4
+jmp :end_if_85
+:after_consequent_84
+whatsthis r4
+getprop r4 "currentId" r4
+whatsthis r6
+getprop r6 "currentTcb" r6
+getprop r6 "id" r6
+mov r4 r6
+whatsthis r7
+setprop r7 "currentId" r4
+whatsthis r4
+getprop r4 "currentTcb" r4
+arr r7
+whatsthis r8
+getprop r8 "currentTcb" r8
+getprop r8 "run" r9
+call r9 r7 r8 r6
+mov r4 r6
+whatsthis r7
+setprop r7 "currentTcb" r4
+:end_if_85
+jmp :start_while
+:end_while
+pop_store
+return None
+:anon_end_81
+mov r6 r45
+getvar "func_Scheduler" r46
+getprop r46 "prototype" r46
+setprop r46 "schedule" r6
+getvar "func_Scheduler" r6
+getprop r6 "prototype" r6
+getprop r6 "release" r6
+arr r45
+arrpush r45 "id_90"
+create_func :anon_88 r45 r46
+jmp :anon_end_89
+:anon_88
+whatsthis r3
+getprop r3 "blocks" r3
+getvar "id_90" r4
+getprop r3 r4 r3
+setvar "var_tcb" r3
+whatsthis r4
+getprop r4 "blocks" r4
+getvar "id_90" r5
+getprop r4 r5 r4
+setvar "var_tcb_92" r4
+mov r5 None
+eq r4 r5 r6
+jnt r6 :after_consequent_93
+return r4
+jmp :end_if_94
+:after_consequent_93
+:end_if_94
+arr r7
+getprop r4 "markAsNotHeld" r8
+call r8 r7 r4 r5
+getprop r4 "priority" r4
+whatsthis r5
+getprop r5 "currentTcb" r5
+getprop r5 "priority" r5
+ge r4 r5 r7
+jnt r7 :after_consequent_95
+getvar "var_tcb_92" r4
+return r4
+jmp :end_if_96
+:after_consequent_95
+whatsthis r5
+getprop r5 "currentTcb" r5
+return r5
+:end_if_96
+delvar "id_90"
+delvar "var_tcb_92"
+return None
+:anon_end_89
+mov r6 r46
+getvar "func_Scheduler" r47
+getprop r47 "prototype" r47
+setprop r47 "release" r6
+getvar "func_Scheduler" r6
+getprop r6 "prototype" r6
+getprop r6 "holdCurrent" r6
+arr r46
+create_func :anon_99 r46 r47
+jmp :anon_end_100
+:anon_99
+whatsthis r3
+getprop r3 "holdCount" r3
+mov r4 r3
+whatsthis r5
+getprop r5 "holdCount" r5
+mov r6 #1
+add r5 r6 r5
+whatsthis r7
+setprop r7 "holdCount" r5
+arr r5
+whatsthis r6
+getprop r6 "currentTcb" r6
+getprop r6 "markAsHeld" r7
+call r7 r5 r6 r4
+whatsthis r4
+getprop r4 "currentTcb" r4
+getprop r4 "link" r4
+return r4
+return None
+:anon_end_100
+mov r6 r47
+getvar "func_Scheduler" r48
+getprop r48 "prototype" r48
+setprop r48 "holdCurrent" r6
+getvar "func_Scheduler" r6
+getprop r6 "prototype" r6
+getprop r6 "suspendCurrent" r6
+arr r47
+create_func :anon_102 r47 r48
+jmp :anon_end_103
+:anon_102
+arr r4
+whatsthis r5
+getprop r5 "currentTcb" r5
+getprop r5 "markAsSuspended" r6
+call r6 r4 r5 r3
+whatsthis r3
+getprop r3 "currentTcb" r3
+return r3
+return None
+:anon_end_103
+mov r6 r48
+getvar "func_Scheduler" r49
+getprop r49 "prototype" r49
+setprop r49 "suspendCurrent" r6
+getvar "func_Scheduler" r6
+getprop r6 "prototype" r6
+getprop r6 "queue" r6
+arr r48
+arrpush r48 "packet"
+create_func :anon_105 r48 r49
+jmp :anon_end_106
+:anon_105
+whatsthis r3
+getprop r3 "blocks" r3
+getvar "packet" r4
+getprop r4 "id" r4
+getprop r3 r4 r3
+setvar "var_t" r3
+whatsthis r4
+getprop r4 "blocks" r4
+getvar "packet" r5
+getprop r5 "id" r5
+getprop r4 r5 r4
+setvar "var_t_108" r4
+mov r5 None
+eq r4 r5 r6
+jnt r6 :after_consequent_109
+return r4
+jmp :end_if_110
+:after_consequent_109
+:end_if_110
+whatsthis r5
+getprop r5 "queueCount" r5
+mov r7 r5
+whatsthis r8
+getprop r8 "queueCount" r8
+mov r9 #1
+add r8 r9 r8
+whatsthis r10
+setprop r10 "queueCount" r8
+getvar "packet" r7
+getprop r7 "link" r7
+mov r8 None
+mov r7 r8
+getvar "packet" r9
+setprop r9 "link" r7
+getvar "packet" r7
+getprop r7 "id" r7
+whatsthis r8
+getprop r8 "currentId" r8
+mov r7 r8
+getvar "packet" r9
+setprop r9 "id" r7
+arr r8
+whatsthis r9
+getprop r9 "currentTcb" r9
+arrpush r8 r9
+getvar "packet" r9
+arrpush r8 r9
+getprop r4 "checkPriorityAdd" r9
+call r9 r8 r4 r7
+return r7
+delvar "packet"
+delvar "var_t_108"
+return None
+:anon_end_106
+mov r6 r49
+getvar "func_Scheduler" r50
+getprop r50 "prototype" r50
+setprop r50 "queue" r6
+jmp :func_end_TaskControlBlock
+:func_start_TaskControlBlock
+whatsthis r3
+getprop r3 "link" r3
+getvar "link" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "link" r3
+whatsthis r3
+getprop r3 "id" r3
+getvar "id" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "id" r3
+whatsthis r3
+getprop r3 "priority" r3
+getvar "priority" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "priority" r3
+whatsthis r3
+getprop r3 "queue" r3
+getvar "queue" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "queue" r3
+whatsthis r3
+getprop r3 "task" r3
+getvar "task" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "task" r3
+getvar "queue" r3
+mov r4 None
+eq r3 r4 r5
+jnt r5 :after_consequent_112
+whatsthis r3
+getprop r3 "state" r3
+getvar "var_STATE_SUSPENDED" r4
+mov r3 r4
+whatsthis r6
+setprop r6 "state" r3
+jmp :end_if_113
+:after_consequent_112
+whatsthis r3
+getprop r3 "state" r3
+getvar "var_STATE_SUSPENDED_RUNNABLE" r4
+mov r3 r4
+whatsthis r6
+setprop r6 "state" r3
+:end_if_113
+delvar "link"
+delvar "id"
+delvar "priority"
+delvar "queue"
+delvar "task"
+return None
+:func_end_TaskControlBlock
+mov r6 #0
+mov r31 r6
+setvar "var_STATE_RUNNING" r31
+mov r6 #1
+mov r32 r6
+setvar "var_STATE_RUNNABLE" r32
+mov r6 #2
+mov r33 r6
+setvar "var_STATE_SUSPENDED" r33
+mov r6 #4
+mov r34 r6
+setvar "var_STATE_HELD" r34
+bit_or r33 r32 r6
+mov r35 r6
+setvar "var_STATE_SUSPENDED_RUNNABLE" r35
+unary_bit_not r34 r6
+mov r36 r6
+setvar "var_STATE_NOT_HELD" r36
+getprop r8 "prototype" r8
+getprop r8 "setRunning" r8
+arr r6
+create_func :anon_116 r6 r49
+jmp :anon_end_117
+:anon_116
+whatsthis r3
+getprop r3 "state" r3
+getvar "var_STATE_RUNNING" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "state" r3
+return None
+:anon_end_117
+mov r8 r49
+getvar "func_TaskControlBlock" r50
+getprop r50 "prototype" r50
+setprop r50 "setRunning" r8
+getvar "func_TaskControlBlock" r8
+getprop r8 "prototype" r8
+getprop r8 "markAsNotHeld" r8
+arr r49
+create_func :anon_119 r49 r50
+jmp :anon_end_120
+:anon_119
+whatsthis r3
+getprop r3 "state" r3
+whatsthis r4
+getprop r4 "state" r4
+getvar "var_STATE_NOT_HELD" r5
+bit_and r4 r5 r6
+mov r3 r6
+whatsthis r4
+setprop r4 "state" r3
+return None
+:anon_end_120
+mov r8 r50
+getvar "func_TaskControlBlock" r51
+getprop r51 "prototype" r51
+setprop r51 "markAsNotHeld" r8
+getvar "func_TaskControlBlock" r8
+getprop r8 "prototype" r8
+getprop r8 "markAsHeld" r8
+arr r50
+create_func :anon_122 r50 r51
+jmp :anon_end_123
+:anon_122
+whatsthis r3
+getprop r3 "state" r3
+whatsthis r4
+getprop r4 "state" r4
+getvar "var_STATE_HELD" r5
+bit_or r4 r5 r6
+mov r3 r6
+whatsthis r4
+setprop r4 "state" r3
+return None
+:anon_end_123
+mov r8 r51
+getvar "func_TaskControlBlock" r52
+getprop r52 "prototype" r52
+setprop r52 "markAsHeld" r8
+getvar "func_TaskControlBlock" r8
+getprop r8 "prototype" r8
+getprop r8 "isHeldOrSuspended" r8
+arr r51
+create_func :anon_125 r51 r52
+jmp :anon_end_126
+:anon_125
+whatsthis r4
+getprop r4 "state" r4
+getvar "var_STATE_HELD" r5
+bit_and r4 r5 r6
+mov r4 #0
+neq r6 r4 r5
+jt r5 :short_circuit_129
+whatsthis r4
+getprop r4 "state" r4
+getvar "var_STATE_SUSPENDED" r6
+eq r4 r6 r7
+jt r7 :short_circuit_129
+mov r3 !False
+jmp :logic_end_128
+:short_circuit_129
+mov r3 !True
+:logic_end_128
+return r3
+return None
+:anon_end_126
+mov r8 r52
+getvar "func_TaskControlBlock" r53
+getprop r53 "prototype" r53
+setprop r53 "isHeldOrSuspended" r8
+getvar "func_TaskControlBlock" r8
+getprop r8 "prototype" r8
+getprop r8 "markAsSuspended" r8
+arr r52
+create_func :anon_130 r52 r53
+jmp :anon_end_131
+:anon_130
+whatsthis r3
+getprop r3 "state" r3
+whatsthis r4
+getprop r4 "state" r4
+getvar "var_STATE_SUSPENDED" r5
+bit_or r4 r5 r6
+mov r3 r6
+whatsthis r4
+setprop r4 "state" r3
+return None
+:anon_end_131
+mov r8 r53
+getvar "func_TaskControlBlock" r54
+getprop r54 "prototype" r54
+setprop r54 "markAsSuspended" r8
+getvar "func_TaskControlBlock" r8
+getprop r8 "prototype" r8
+getprop r8 "markAsRunnable" r8
+arr r53
+create_func :anon_133 r53 r54
+jmp :anon_end_134
+:anon_133
+whatsthis r3
+getprop r3 "state" r3
+whatsthis r4
+getprop r4 "state" r4
+getvar "var_STATE_RUNNABLE" r5
+bit_or r4 r5 r6
+mov r3 r6
+whatsthis r4
+setprop r4 "state" r3
+return None
+:anon_end_134
+mov r8 r54
+getvar "func_TaskControlBlock" r55
+getprop r55 "prototype" r55
+setprop r55 "markAsRunnable" r8
+getvar "func_TaskControlBlock" r8
+getprop r8 "prototype" r8
+getprop r8 "run" r8
+arr r54
+create_func :anon_136 r54 r55
+jmp :anon_end_137
+:anon_136
+setvar "var_packet" Undefined
+setvar "var_packet_139" Undefined
+whatsthis r3
+getprop r3 "state" r3
+getvar "var_STATE_SUSPENDED_RUNNABLE" r4
+eq r3 r4 r5
+jnt r5 :after_consequent_140
+getvar "var_packet_139" r3
+whatsthis r4
+getprop r4 "queue" r4
+mov r3 r4
+setvar "var_packet_139" r3
+whatsthis r3
+getprop r3 "queue" r3
+getvar "var_packet_139" r4
+getprop r4 "link" r4
+mov r3 r4
+whatsthis r6
+setprop r6 "queue" r3
+whatsthis r3
+getprop r3 "queue" r3
+mov r4 None
+eq r3 r4 r6
+jnt r6 :after_consequent_143
+whatsthis r3
+getprop r3 "state" r3
+getvar "var_STATE_RUNNING" r4
+mov r3 r4
+whatsthis r7
+setprop r7 "state" r3
+jmp :end_if_144
+:after_consequent_143
+whatsthis r3
+getprop r3 "state" r3
+getvar "var_STATE_RUNNABLE" r4
+mov r3 r4
+whatsthis r7
+setprop r7 "state" r3
+:end_if_144
+jmp :end_if_141
+:after_consequent_140
+getvar "var_packet_139" r3
+mov r4 None
+mov r3 r4
+setvar "var_packet_139" r3
+:end_if_141
+arr r4
+getvar "var_packet_139" r7
+arrpush r4 r7
+whatsthis r7
+getprop r7 "task" r7
+getprop r7 "run" r8
+call r8 r4 r7 r3
+return r3
+delvar "var_packet_139"
+return None
+:anon_end_137
+mov r8 r55
+getvar "func_TaskControlBlock" r56
+getprop r56 "prototype" r56
+setprop r56 "run" r8
+getvar "func_TaskControlBlock" r8
+getprop r8 "prototype" r8
+getprop r8 "checkPriorityAdd" r8
+arr r55
+arrpush r55 "task_150"
+arrpush r55 "packet_151"
+create_func :anon_148 r55 r56
+jmp :anon_end_149
+:anon_148
+whatsthis r3
+getprop r3 "queue" r3
+mov r4 None
+eq r3 r4 r5
+jnt r5 :after_consequent_153
+whatsthis r3
+getprop r3 "queue" r3
+getvar "packet_151" r4
+mov r3 r4
+whatsthis r6
+setprop r6 "queue" r3
+arr r4
+whatsthis r6
+getprop r6 "markAsRunnable" r7
+call r7 r4 r6 r3
+whatsthis r3
+getprop r3 "priority" r3
+getvar "task_150" r4
+getprop r4 "priority" r4
+ge r3 r4 r6
+jnt r6 :after_consequent_156
+whatsthis r3
+return r3
+jmp :end_if_157
+:after_consequent_156
+:end_if_157
+jmp :end_if_154
+:after_consequent_153
+whatsthis r4
+getprop r4 "queue" r4
+arr r8
+whatsthis r9
+getprop r9 "queue" r9
+arrpush r8 r9
+getvar "packet_151" r9
+getprop r9 "addTo" r10
+call r10 r8 r9 r7
+mov r4 r7
+whatsthis r8
+setprop r8 "queue" r4
+:end_if_154
+getvar "task_150" r4
+return r4
+delvar "task_150"
+delvar "packet_151"
+return None
+:anon_end_149
+mov r8 r56
+getvar "func_TaskControlBlock" r57
+getprop r57 "prototype" r57
+setprop r57 "checkPriorityAdd" r8
+getvar "func_TaskControlBlock" r8
+getprop r8 "prototype" r8
+getprop r8 "toString" r8
+arr r56
+create_func :anon_159 r56 r57
+jmp :anon_end_160
+:anon_159
+mov r3 "tcb { "
+whatsthis r4
+getprop r4 "task" r4
+add r3 r4 r5
+mov r3 "@"
+add r5 r3 r4
+whatsthis r3
+getprop r3 "state" r3
+add r4 r3 r5
+mov r3 " }"
+add r5 r3 r4
+return r4
+return None
+:anon_end_160
+mov r8 r57
+getvar "func_TaskControlBlock" r58
+getprop r58 "prototype" r58
+setprop r58 "toString" r8
+jmp :func_end_IdleTask
+:func_start_IdleTask
+whatsthis r3
+getprop r3 "scheduler" r3
+getvar "scheduler" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "scheduler" r3
+whatsthis r3
+getprop r3 "v1" r3
+getvar "v1" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "v1" r3
+whatsthis r3
+getprop r3 "count" r3
+getvar "count" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "count" r3
+delvar "scheduler"
+delvar "v1"
+delvar "count"
+return None
+:func_end_IdleTask
+getprop r10 "prototype" r10
+getprop r10 "run" r10
+arr r8
+arrpush r8 "packet_165"
+create_func :anon_163 r8 r57
+jmp :anon_end_164
+:anon_163
+whatsthis r3
+getprop r3 "count" r3
+mov r4 r3
+whatsthis r5
+getprop r5 "count" r5
+mov r6 #1
+sub r5 r6 r5
+whatsthis r7
+setprop r7 "count" r5
+whatsthis r4
+getprop r4 "count" r4
+mov r5 #0
+eq r4 r5 r6
+jnt r6 :after_consequent_167
+arr r5
+whatsthis r7
+getprop r7 "scheduler" r7
+getprop r7 "holdCurrent" r8
+call r8 r5 r7 r4
+return r4
+jmp :end_if_168
+:after_consequent_167
+:end_if_168
+whatsthis r5
+getprop r5 "v1" r5
+mov r7 #1
+bit_and r5 r7 r8
+mov r5 #0
+eq r8 r5 r7
+jnt r7 :after_consequent_169
+whatsthis r5
+getprop r5 "v1" r5
+whatsthis r8
+getprop r8 "v1" r8
+mov r9 #1
+shr r8 r9 r10
+mov r5 r10
+whatsthis r8
+setprop r8 "v1" r5
+arr r8
+getvar "var_ID_DEVICE_A" r9
+arrpush r8 r9
+whatsthis r9
+getprop r9 "scheduler" r9
+getprop r9 "release" r10
+call r10 r8 r9 r5
+return r5
+jmp :end_if_170
+:after_consequent_169
+whatsthis r8
+getprop r8 "v1" r8
+whatsthis r9
+getprop r9 "v1" r9
+mov r10 #1
+shr r9 r10 r11
+mov r9 #53256
+xor r11 r9 r10
+mov r8 r10
+whatsthis r9
+setprop r9 "v1" r8
+arr r9
+getvar "var_ID_DEVICE_B" r10
+arrpush r9 r10
+whatsthis r10
+getprop r10 "scheduler" r10
+getprop r10 "release" r11
+call r11 r9 r10 r8
+return r8
+:end_if_170
+delvar "packet_165"
+return None
+:anon_end_164
+mov r10 r57
+getvar "func_IdleTask" r58
+getprop r58 "prototype" r58
+setprop r58 "run" r10
+getvar "func_IdleTask" r10
+getprop r10 "prototype" r10
+getprop r10 "toString" r10
+arr r57
+create_func :anon_173 r57 r58
+jmp :anon_end_174
+:anon_173
+mov r3 "IdleTask"
+return r3
+return None
+:anon_end_174
+mov r10 r58
+getvar "func_IdleTask" r59
+getprop r59 "prototype" r59
+setprop r59 "toString" r10
+jmp :func_end_DeviceTask
+:func_start_DeviceTask
+whatsthis r3
+getprop r3 "scheduler" r3
+getvar "scheduler_9" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "scheduler" r3
+whatsthis r3
+getprop r3 "v1" r3
+mov r4 None
+mov r3 r4
+whatsthis r5
+setprop r5 "v1" r3
+delvar "scheduler_9"
+return None
+:func_end_DeviceTask
+getprop r12 "prototype" r12
+getprop r12 "run" r12
+arr r10
+arrpush r10 "packet_179"
+create_func :anon_177 r10 r58
+jmp :anon_end_178
+:anon_177
+getvar "packet_179" r3
+mov r4 None
+eq r3 r4 r5
+jnt r5 :after_consequent_181
+whatsthis r3
+getprop r3 "v1" r3
+setvar "var_v" r3
+whatsthis r4
+getprop r4 "v1" r4
+mov r6 None
+eq r4 r6 r7
+jnt r7 :after_consequent_184
+arr r6
+whatsthis r8
+getprop r8 "scheduler" r8
+getprop r8 "suspendCurrent" r9
+call r9 r6 r8 r4
+return r4
+jmp :end_if_185
+:after_consequent_184
+:end_if_185
+whatsthis r6
+getprop r6 "v1" r6
+mov r3 r6
+setvar "var_v" r3
+whatsthis r6
+getprop r6 "v1" r6
+mov r8 None
+mov r6 r8
+whatsthis r9
+setprop r9 "v1" r6
+arr r8
+arrpush r8 r3
+whatsthis r9
+getprop r9 "scheduler" r9
+getprop r9 "queue" r10
+call r10 r8 r9 r6
+return r6
+delvar "var_v"
+jmp :end_if_182
+:after_consequent_181
+whatsthis r3
+getprop r3 "v1" r3
+getvar "packet_179" r8
+mov r3 r8
+whatsthis r9
+setprop r9 "v1" r3
+arr r8
+whatsthis r9
+getprop r9 "scheduler" r9
+getprop r9 "holdCurrent" r10
+call r10 r8 r9 r3
+return r3
+:end_if_182
+delvar "packet_179"
+return None
+:anon_end_178
+mov r12 r58
+getvar "func_DeviceTask" r59
+getprop r59 "prototype" r59
+setprop r59 "run" r12
+getvar "func_DeviceTask" r12
+getprop r12 "prototype" r12
+getprop r12 "toString" r12
+arr r58
+create_func :anon_187 r58 r59
+jmp :anon_end_188
+:anon_187
+mov r3 "DeviceTask"
+return r3
+return None
+:anon_end_188
+mov r12 r59
+getvar "func_DeviceTask" r60
+getprop r60 "prototype" r60
+setprop r60 "toString" r12
+jmp :func_end_WorkerTask
+:func_start_WorkerTask
+whatsthis r3
+getprop r3 "scheduler" r3
+getvar "scheduler_12" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "scheduler" r3
+whatsthis r3
+getprop r3 "v1" r3
+getvar "v1_13" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "v1" r3
+whatsthis r3
+getprop r3 "v2" r3
+getvar "v2" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "v2" r3
+delvar "scheduler_12"
+delvar "v1_13"
+delvar "v2"
+return None
+:func_end_WorkerTask
+getprop r14 "prototype" r14
+getprop r14 "run" r14
+arr r12
+arrpush r12 "packet_193"
+create_func :anon_191 r12 r59
+jmp :anon_end_192
+:anon_191
+getvar "packet_193" r3
+mov r4 None
+eq r3 r4 r5
+jnt r5 :after_consequent_195
+arr r4
+whatsthis r6
+getprop r6 "scheduler" r6
+getprop r6 "suspendCurrent" r7
+call r7 r4 r6 r3
+return r3
+jmp :end_if_196
+:after_consequent_195
+whatsthis r4
+getprop r4 "v1" r4
+getvar "var_ID_HANDLER_A" r6
+eq r4 r6 r7
+jnt r7 :after_consequent_199
+whatsthis r4
+getprop r4 "v1" r4
+getvar "var_ID_HANDLER_B" r6
+mov r4 r6
+whatsthis r8
+setprop r8 "v1" r4
+jmp :end_if_200
+:after_consequent_199
+whatsthis r4
+getprop r4 "v1" r4
+getvar "var_ID_HANDLER_A" r6
+mov r4 r6
+whatsthis r8
+setprop r8 "v1" r4
+:end_if_200
+getvar "packet_193" r4
+getprop r4 "id" r4
+whatsthis r6
+getprop r6 "v1" r6
+mov r4 r6
+getvar "packet_193" r8
+setprop r8 "id" r4
+getvar "packet_193" r4
+getprop r4 "a1" r4
+mov r6 #0
+mov r4 r6
+getvar "packet_193" r8
+setprop r8 "a1" r4
+push_store
+mov r4 #0
+setvar "var_i" r4
+:start_for
+getvar "var_DATA_SIZE" r6
+le r4 r6 r8
+jnt r8 :end_for
+whatsthis r6
+getprop r6 "v2" r6
+mov r9 r6
+whatsthis r10
+getprop r10 "v2" r10
+mov r11 #1
+add r10 r11 r10
+whatsthis r12
+setprop r12 "v2" r10
+whatsthis r9
+getprop r9 "v2" r9
+mov r10 #26
+ge r9 r10 r11
+jnt r11 :after_consequent_205
+whatsthis r9
+getprop r9 "v2" r9
+mov r10 #1
+mov r9 r10
+whatsthis r12
+setprop r12 "v2" r9
+jmp :end_if_206
+:after_consequent_205
+:end_if_206
+getvar "packet_193" r9
+getprop r9 "a2" r9
+getprop r9 r4 r9
+whatsthis r10
+getprop r10 "v2" r10
+mov r9 r10
+getvar "packet_193" r12
+getprop r12 "a2" r12
+setprop r12 r4 r9
+:end_body
+mov r9 r4
+mov r10 #1
+add r4 r10 r4
+setvar "var_i" r4
+jmp :start_for
+:end_for
+pop_store
+arr r12
+getvar "packet_193" r13
+arrpush r12 r13
+whatsthis r13
+getprop r13 "scheduler" r13
+getprop r13 "queue" r14
+call r14 r12 r13 r10
+return r10
+:end_if_196
+delvar "packet_193"
+return None
+:anon_end_192
+mov r14 r59
+getvar "func_WorkerTask" r60
+getprop r60 "prototype" r60
+setprop r60 "run" r14
+getvar "func_WorkerTask" r14
+getprop r14 "prototype" r14
+getprop r14 "toString" r14
+arr r59
+create_func :anon_207 r59 r60
+jmp :anon_end_208
+:anon_207
+mov r3 "WorkerTask"
+return r3
+return None
+:anon_end_208
+mov r14 r60
+getvar "func_WorkerTask" r61
+getprop r61 "prototype" r61
+setprop r61 "toString" r14
+jmp :func_end_HandlerTask
+:func_start_HandlerTask
+whatsthis r3
+getprop r3 "scheduler" r3
+getvar "scheduler_16" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "scheduler" r3
+whatsthis r3
+getprop r3 "v1" r3
+mov r4 None
+mov r3 r4
+whatsthis r5
+setprop r5 "v1" r3
+whatsthis r3
+getprop r3 "v2" r3
+mov r4 None
+mov r3 r4
+whatsthis r5
+setprop r5 "v2" r3
+delvar "scheduler_16"
+return None
+:func_end_HandlerTask
+getprop r16 "prototype" r16
+getprop r16 "run" r16
+arr r14
+arrpush r14 "packet_213"
+create_func :anon_211 r14 r60
+jmp :anon_end_212
+:anon_211
+getvar "packet_213" r3
+mov r4 None
+neq r3 r4 r5
+jnt r5 :after_consequent_215
+getvar "packet_213" r3
+getprop r3 "kind" r3
+getvar "var_KIND_WORK" r4
+eq r3 r4 r6
+jnt r6 :after_consequent_218
+whatsthis r3
+getprop r3 "v1" r3
+arr r7
+whatsthis r8
+getprop r8 "v1" r8
+arrpush r7 r8
+getvar "packet_213" r8
+getprop r8 "addTo" r9
+call r9 r7 r8 r4
+mov r3 r4
+whatsthis r7
+setprop r7 "v1" r3
+jmp :end_if_219
+:after_consequent_218
+whatsthis r3
+getprop r3 "v2" r3
+arr r7
+whatsthis r8
+getprop r8 "v2" r8
+arrpush r7 r8
+getvar "packet_213" r8
+getprop r8 "addTo" r9
+call r9 r7 r8 r4
+mov r3 r4
+whatsthis r7
+setprop r7 "v2" r3
+:end_if_219
+jmp :end_if_216
+:after_consequent_215
+:end_if_216
+whatsthis r3
+getprop r3 "v1" r3
+mov r4 None
+neq r3 r4 r7
+jnt r7 :after_consequent_222
+whatsthis r3
+getprop r3 "v1" r3
+getprop r3 "a1" r3
+setvar "var_count" r3
+setvar "var_v_225" Undefined
+whatsthis r4
+getprop r4 "v1" r4
+getprop r4 "a1" r4
+mov r3 r4
+setvar "var_count" r3
+getvar "var_DATA_SIZE" r4
+le r3 r4 r8
+jnt r8 :after_consequent_226
+whatsthis r4
+getprop r4 "v2" r4
+mov r9 None
+neq r4 r9 r10
+jnt r10 :after_consequent_229
+getvar "var_v_225" r4
+whatsthis r9
+getprop r9 "v2" r9
+mov r4 r9
+setvar "var_v_225" r4
+whatsthis r4
+getprop r4 "v2" r4
+whatsthis r9
+getprop r9 "v2" r9
+getprop r9 "link" r9
+mov r4 r9
+whatsthis r11
+setprop r11 "v2" r4
+getvar "var_v_225" r4
+getprop r4 "a1" r4
+whatsthis r9
+getprop r9 "v1" r9
+getprop r9 "a2" r9
+getprop r9 r3 r9
+mov r4 r9
+getvar "var_v_225" r11
+setprop r11 "a1" r4
+whatsthis r4
+getprop r4 "v1" r4
+getprop r4 "a1" r4
+mov r9 #1
+add r3 r9 r11
+mov r4 r11
+whatsthis r9
+getprop r9 "v1" r9
+setprop r9 "a1" r4
+arr r9
+getvar "var_v_225" r11
+arrpush r9 r11
+whatsthis r11
+getprop r11 "scheduler" r11
+getprop r11 "queue" r12
+call r12 r9 r11 r4
+return r4
+jmp :end_if_230
+:after_consequent_229
+:end_if_230
+jmp :end_if_227
+:after_consequent_226
+getvar "var_v_225" r9
+whatsthis r11
+getprop r11 "v1" r11
+mov r9 r11
+setvar "var_v_225" r9
+whatsthis r9
+getprop r9 "v1" r9
+whatsthis r11
+getprop r11 "v1" r11
+getprop r11 "link" r11
+mov r9 r11
+whatsthis r12
+setprop r12 "v1" r9
+arr r11
+getvar "var_v_225" r12
+arrpush r11 r12
+whatsthis r12
+getprop r12 "scheduler" r12
+getprop r12 "queue" r13
+call r13 r11 r12 r9
+return r9
+:end_if_227
+delvar "var_count"
+delvar "var_v_225"
+jmp :end_if_223
+:after_consequent_222
+:end_if_223
+arr r11
+whatsthis r12
+getprop r12 "scheduler" r12
+getprop r12 "suspendCurrent" r13
+call r13 r11 r12 r3
+return r3
+delvar "packet_213"
+return None
+:anon_end_212
+mov r16 r60
+getvar "func_HandlerTask" r61
+getprop r61 "prototype" r61
+setprop r61 "run" r16
+getvar "func_HandlerTask" r16
+getprop r16 "prototype" r16
+getprop r16 "toString" r16
+arr r60
+create_func :anon_233 r60 r61
+jmp :anon_end_234
+:anon_233
+mov r3 "HandlerTask"
+return r3
+return None
+:anon_end_234
+mov r16 r61
+getvar "func_HandlerTask" r62
+getprop r62 "prototype" r62
+setprop r62 "toString" r16
+mov r16 #4
+mov r37 r16
+setvar "var_DATA_SIZE" r37
+jmp :func_end_Packet
+:func_start_Packet
+whatsthis r3
+getprop r3 "link" r3
+getvar "link_19" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "link" r3
+whatsthis r3
+getprop r3 "id" r3
+getvar "id_20" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "id" r3
+whatsthis r3
+getprop r3 "kind" r3
+getvar "kind" r4
+mov r3 r4
+whatsthis r5
+setprop r5 "kind" r3
+whatsthis r3
+getprop r3 "a1" r3
+mov r4 #0
+mov r3 r4
+whatsthis r5
+setprop r5 "a1" r3
+whatsthis r3
+getprop r3 "a2" r3
+arr r5
+getvar "var_DATA_SIZE" r6
+arrpush r5 r6
+global r6
+getprop r6 "Array" r6
+obj r7
+getprop r6 "prototype" r8
+setprop r7 "__proto__" r8
+call r6 r5 r7 r4
+global r8
+getprop r8 "Object" r8
+check_instance r4 r8 r8
+jt r8 :after_test_237
+mov r4 r7
+:after_test_237
+mov r3 r4
+whatsthis r5
+setprop r5 "a2" r3
+delvar "link_19"
+delvar "id_20"
+delvar "kind"
+return None
+:func_end_Packet
+getprop r18 "prototype" r18
+getprop r18 "addTo" r18
+arr r16
+arrpush r16 "queue_240"
+create_func :anon_238 r16 r61
+jmp :anon_end_239
+:anon_238
+setvar "var_peek" Undefined
+getvar "queue_240" r3
+setvar "var_next" r3
+whatsthis r4
+getprop r4 "link" r4
+mov r5 None
+mov r4 r5
+whatsthis r6
+setprop r6 "link" r4
+getvar "queue_240" r4
+mov r5 None
+eq r4 r5 r6
+jnt r6 :after_consequent_242
+whatsthis r4
+return r4
+jmp :end_if_243
+:after_consequent_242
+:end_if_243
+setvar "var_peek_244" Undefined
+getvar "queue_240" r5
+setvar "var_next_245" r5
+push_store
+:start_while_246
+getvar "var_peek_244" r7
+getvar "var_next_245" r8
+getprop r8 "link" r8
+mov r7 r8
+setvar "var_peek_244" r7
+mov r8 None
+neq r7 r8 r9
+jnt r9 :end_while_247
+getvar "var_next_245" r7
+getvar "var_peek_244" r8
+mov r7 r8
+setvar "var_next_245" r7
+jmp :start_while_246
+:end_while_247
+pop_store
+getprop r5 "link" r5
+whatsthis r7
+mov r5 r7
+getvar "var_next_245" r8
+setprop r8 "link" r5
+getvar "queue_240" r5
+return r5
+delvar "queue_240"
+delvar "var_peek_244"
+delvar "var_next_245"
+return None
+:anon_end_239
+mov r18 r61
+getvar "func_Packet" r62
+getprop r62 "prototype" r62
+setprop r62 "addTo" r18
+getvar "func_Packet" r18
+getprop r18 "prototype" r18
+getprop r18 "toString" r18
+arr r61
+create_func :anon_248 r61 r62
+jmp :anon_end_249
+:anon_248
+mov r3 "Packet"
+return r3
+return None
+:anon_end_249
+mov r18 r62
+getvar "func_Packet" r63
+getprop r63 "prototype" r63
+setprop r63 "toString" r18
+arr r62
+global r63
+call r4 r62 r63 r18

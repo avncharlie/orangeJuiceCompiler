@@ -34,12 +34,6 @@
 // The benchmark was originally implemented in BCPL by
 // Martin Richards.
 
-
-//var Richards = new BenchmarkSuite('Richards', [35302], [
-//  new Benchmark("Richards", true, false, 8200, runRichards)
-//]);
-
-
 /**
  * The Richards benchmark simulates the task dispatcher of an
  * operating system.
@@ -73,7 +67,9 @@ function runRichards() {
     var msg =
         "Error during execution: queueCount = " + scheduler.queueCount +
         ", holdCount = " + scheduler.holdCount + ".";
-    throw new Error(msg);
+    console.log(msg);
+  } else {
+    console.log('Richards successful!');
   }
 }
 
@@ -539,4 +535,3 @@ Packet.prototype.toString = function () {
 };
 
 runRichards()
-console.log('richards has run!')

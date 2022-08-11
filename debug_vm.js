@@ -170,14 +170,22 @@ let operations = {
     setvar(args) {
 
         let var_name = args[0].value;
-        let val = args[1];
-        val = (val.type != "register") ? val.value : registers[val.value]
+        let value = args[1];
 
-        // pick scope (current function or global)
+        let val;
+        if (value.type == 'Undefined') {
+            val = undefined;
+        } else {
+            val = (value.type != "register") ? value.value : registers[value.value]
+        }
+
+        // pick variable from scope from favouring more global scopes
         let varmap = variables[variables.length - 1]
-        if (var_name in variables[0]) {
-            varmap = variables[0]
-        } 
+        for (let scope of variables) {
+            if (var_name in scope) {
+                varmap = scope
+            } 
+        }
 
         varmap[var_name] = val
         instruction_index += 1;
@@ -188,10 +196,12 @@ let operations = {
         let var_name = args[0].value;
         let reg = args[1].value;
 
-        // pick scope (current function or global)
+        // pick variable from scope from favouring more local scopes
         let varmap = variables[0]
-        if (var_name in variables[variables.length - 1]) {
-            varmap = variables[variables.length - 1]
+        for (let index = variables.length - 1; index >= 0; index--) {
+            if (var_name in variables[index]) {
+                varmap = variables[index]
+            }
         }
 
         registers[reg] = varmap[var_name];
@@ -463,6 +473,10 @@ function run(args) {
     while (instruction_index < instructions.length) {
         let ins = instructions[instruction_index]
 
+        if (instruction_index == 1388) {
+            debugger;
+        }
+
         if (ins.type == 'label') {
             instruction_index += 1;
             continue;
@@ -475,8 +489,17 @@ function run(args) {
             return rval
         }
 
-        //console.log(ins.string_repr);
-        operations[ins.op](ins.args);
+        try {
+            //console.log(ins.string_repr);
+            operations[ins.op](ins.args);
+        } catch(err) {
+            console.log('ERROR: ' + err.message);
+            console.log('...... instruction index: ' + instruction_index);
+            console.log('...... instruction: ' + ins.string_repr);
+            console.log('...... approximate location in source: line ' + ins.approx_loc);
+            throw err;
+            process.exit();
+        }
         //console.log(registers, variables);
     }
 }

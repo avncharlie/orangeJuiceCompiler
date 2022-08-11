@@ -27,6 +27,13 @@ todo:
     - error messages?
     - var hoisting?
     - try / catch
+
+possible bugs:
+    - remove_all_var_registers called for while loops but not with for loops 
+      it probably should?
+    - getvar and setvar should maybe look through all scopes to find 'closest'
+      one 
+    - remove function body below code (var hoisting supercedes this)
 '''
 
 DEBUG = False; DEBUGDEBUG = False
@@ -49,6 +56,8 @@ loopstack = []
 
 branch_counter = 0
 asm = []
+
+loc_info = None
 
 used_names = []
 debug_name_counter = 0
@@ -114,6 +123,9 @@ def gen_ins(ins):
         elif part == "None":
             f_part["type"] = "null"
             f_part["value"] = None
+        elif part == "Undefined":
+            f_part["type"] = "Undefined"
+            f_part["value"] = None
         elif part[0] == ":":
             f_part["type"] = "label"
             f_part["value"] = part[1:]
@@ -134,6 +146,7 @@ def gen_ins(ins):
             "op": ins_split[0],
             "args": arguments,
             "string_repr": ins,
+            "approx_loc": loc_info['start']['line']
     }
 
 def request_register():
@@ -248,6 +261,10 @@ def handle_node(node, named_block=None, declare_func_mode=False):
     global registers, reg_stack
     global scope_stack, scope_stack_stack
     global scopes, scopes_backup
+    global loc_info
+
+    if 'loc' in node:
+        loc_info = node['loc']
 
     t = node["type"]
 
@@ -495,7 +512,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
                 'type': var_type
             }
             # create var at runtime
-            r = 'None' if r == None else 'r{}'.format(r)
+            r = 'Undefined' if r == None else 'r{}'.format(r)
             asm.append(gen_ins('setvar "{}" {}'.format(var_id, r)))
 
     elif t == 'Identifier':
@@ -920,6 +937,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         # first backup scope (will restore after loop is handled)
         scope_stack_stack.append(scope_stack[:])
         scopes_backup.append(copy.deepcopy(scopes))
+        remove_all_var_registers()
 
         # bookkeep loop bounds for break and continue statements
         loopstack.append({
@@ -1049,7 +1067,6 @@ def handle_block(block, base_node, root=False, preset_vars=None):
     '''
     will create new scope and execute code in scope (if not root, root scope manually created)
 
-    TODO: should hoist vars and funcs
     '''
 
     # create scope:
@@ -1070,14 +1087,24 @@ def handle_block(block, base_node, root=False, preset_vars=None):
 
     # generate asm inside scope
 
-    # this round will declare functions
+    # this round will hoist function declarations (will not create func bodies)
     for node in block:
         if node['type'] == 'FunctionDeclaration':
             handle_node(node, declare_func_mode=True)
 
-    # this round will generate everything (and function bodies)
+    # this round will hoist 'var' variable declarations
+    # (just declaration, no initialisation)
+    for node in block:
+        if node['type'] == 'VariableDeclaration' and node['kind'] == 'var':
+            just_declaration = copy.deepcopy(node)
+            if 'init' in just_declaration:
+                del just_declaration['init']
+            handle_node(just_declaration)
+
+    # this round will handle everything else
     for node in block:
         handle_node(node)
+
 
     # deconstruct scope:
     #return
@@ -1147,8 +1174,17 @@ compile(ast)
 #print(json.dumps(asm, indent=2))
 
 # short form instructions
-if True or 'silent' not in sys.argv:
-    for ins in asm: print(ins['string_repr'])
+instructions_string = ''
+
+for ins in asm: 
+    instructions_string += ins['string_repr'] + '\n'
+
+if 'silent' not in sys.argv:
+    print(instructions_string)
+
+f = open('ins_read', 'w')
+f.write(instructions_string)
+f.close()
 
 # scope info
 #print(json.dumps(scopes, indent=2), scope_stack)

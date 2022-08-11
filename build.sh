@@ -9,6 +9,6 @@ else
 fi
 
 echo "Bytecode generating ..."
-python3 compiler.py ast out.ins silent
+python3 compiler.py ast out.ins $2
 
 echo "Bytecode in ./out.ins"

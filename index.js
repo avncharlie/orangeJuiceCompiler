@@ -1,3 +1,36 @@
+
+foo = function() {
+    console.log('a is: ' + a);
+}
+
+var a = 5;
+foo()
+
+/*
+// scopes test
+var a = 5;
+var b = 5;
+
+while (a > 0) {
+    var foo = 'hi';
+    while (b > 0) {
+        console.log(foo);
+        foo += b;
+        b--;
+    }
+    a--;
+}
+*/
+
+/*
+function a(){
+	console.log(foo);
+}
+var foo = 5
+a();
+*/
+
+
 /*
 "void" | "delete" | "throw"
 */
@@ -66,6 +99,7 @@ function foo () {
 console.log(obj.outside() == globalThis);
 console.log(obj.insideProp() == obj);
 console.log(obj.insideMember() == obj);
+*/
 
 /*
 function Car(make, model, year) {
@@ -235,13 +269,11 @@ while (counter != 0) {
 }
 */
 
-
 /*
 // scoping example
 var a = 5;
 console.log('a is: ' + a);
 {
-    a += 5;
     let a = 1;
     console.log('a is: ' + a);
 }
