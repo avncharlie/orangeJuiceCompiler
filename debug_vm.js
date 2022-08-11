@@ -484,8 +484,13 @@ function run(args) {
 
         // special handling for return
         if (ins.op == 'return') {
-            let rval = ins.args[0]
-            rval = (rval.type != "register") ? rval.value : registers[rval.value]
+            let value = ins.args[0];
+            let rval;
+            if (value.type == 'Undefined') {
+                rval = undefined;
+            } else {
+                rval = (value.type != "register") ? value.value : registers[value.value]
+            }
             return rval
         }
 

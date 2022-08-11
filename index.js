@@ -1,10 +1,63 @@
+/*
+// assignment operators test
+a = 10;
+a += 2;
+console.log(a)
 
-foo = function() {
-    console.log('a is: ' + a);
-}
+a = 10;
+a -= 2;
+console.log(a)
 
-var a = 5;
-foo()
+a = 10;
+a *= 2;
+console.log(a)
+
+a = 10;
+a /= 2;
+console.log(a)
+
+a = 10;
+a %= 2;
+console.log(a)
+
+a = 10;
+a **= 2;
+console.log(a)
+
+a = 10;
+a <<= 2;
+console.log(a)
+
+a = 10;
+a >>= 2;
+console.log(a)
+
+a = 10;
+a >>>= 2;
+console.log(a)
+
+a = 10;
+a |= 2;
+console.log(a)
+
+a = 10;
+a ^= 2;
+console.log(a)
+
+a = 10;
+a &= 2;
+console.log(a)
+
+a = 10;
+a ||= 2;
+console.log(a)
+*/
+
+/*
+
+    | "||=" | "&&=" | "??="
+
+*/
 
 /*
 // scopes test

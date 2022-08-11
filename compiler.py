@@ -13,6 +13,7 @@ ast = json.load(ast_file)
 
 '''
 Unsupported:
+    - '||='. '&&=' and '??=' assignments
     - void, delete and throw statements
     - try / catch / throw
     - closures (functions as arguments, return values, callbacks and anonymous
@@ -31,13 +32,13 @@ todo:
 possible bugs:
     - remove_all_var_registers called for while loops but not with for loops 
       it probably should?
-    - getvar and setvar should maybe look through all scopes to find 'closest'
-      one 
-    - remove function body below code (var hoisting supercedes this)
+    - definetely a bunch of register leaking happening
+    - undefined / null not defined well for all instructions in VM
+      should have a standard function to retrieve value for argument
 '''
 
 DEBUG = False; DEBUGDEBUG = False
-DEBUG = True; DEBUGDEBUG = False
+#DEBUG = True; DEBUGDEBUG = False
 #DEBUG = True; DEBUGDEBUG = True
 
 # if registers[x] == false or doesn't exist, register unclaimed
@@ -358,7 +359,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         # step 6: handle body of function with arguments as preset vars
         asm.append(gen_ins(':' + func_label)) # start label
         handle_block(node['body']['body'], t, preset_vars=func_preset_vars)
-        asm.append(gen_ins('return None')) # catch all return if there is no return in func body
+        asm.append(gen_ins('return Undefined')) # catch all return if there is no return in func body
         asm.append(gen_ins(':' + func_end_label))
 
         # cleanup:
@@ -369,12 +370,12 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         scopes = scopes_backup.pop()
 
     elif t == 'ReturnStatement':
-        if 'argument' in node:
+        if node['argument'] is not None:
             handle_node(node['argument'])
             return_reg = node['argument']['register']
             asm.append(gen_ins('return r{}'.format(return_reg)))
         else:
-            asm.append(gen_ins('return None'))
+            asm.append(gen_ins('return Undefined'))
 
     elif t in ['CallExpression', 'NewExpression']:
         # BUG: whatever your constructor function returns will be returned as
@@ -726,6 +727,26 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             asm.append(gen_ins('add r{} r{} r{}'.format(r_left, r_right, r_left)))
         elif op == '-=':
             asm.append(gen_ins('sub r{} r{} r{}'.format(r_left, r_right, r_left)))
+        elif op == '*=':
+            asm.append(gen_ins('mul r{} r{} r{}'.format(r_left, r_right, r_left)))
+        elif op == '/=':
+            asm.append(gen_ins('div r{} r{} r{}'.format(r_left, r_right, r_left)))
+        elif op == '%=':
+            asm.append(gen_ins('mod r{} r{} r{}'.format(r_left, r_right, r_left)))
+        elif op == '**=':
+            asm.append(gen_ins('pow r{} r{} r{}'.format(r_left, r_right, r_left)))
+        elif op == '<<=':
+            asm.append(gen_ins('shl r{} r{} r{}'.format(r_left, r_right, r_left)))
+        elif op == '>>=':
+            asm.append(gen_ins('shr r{} r{} r{}'.format(r_left, r_right, r_left)))
+        elif op == '>>>=':
+            asm.append(gen_ins('ushr r{} r{} r{}'.format(r_left, r_right, r_left)))
+        elif op == '|=':
+            asm.append(gen_ins('bit_or r{} r{} r{}'.format(r_left, r_right, r_left)))
+        elif op == '^=':
+            asm.append(gen_ins('xor r{} r{} r{}'.format(r_left, r_right, r_left)))
+        elif op == '&=':
+            asm.append(gen_ins('bit_and r{} r{} r{}'.format(r_left, r_right, r_left)))
         else:
             print('AssignmentExpression operation {} not supported!'.format(op))
 
@@ -1025,6 +1046,41 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         free_register(r_right)
 
         node['register'] = r_ans
+
+    elif t == 'ConditionalExpression':
+        '''
+        <test>
+        jnt :alternate
+        <handle_consequent>
+        mov rAns rConsequent
+        jmp :end
+        :alternate
+        <handle_alternate>
+        mov rAns rAlternate
+        :end
+        '''
+
+        alternate = get_name('alternate')
+        end_conditional = get_name('end_conditional')
+
+        r_result = request_register()
+        node['register'] = r_result
+
+        handle_node(node['test'])
+        r_test = node['test']['register']
+        asm.append(gen_ins('jnt r{} :{}'.format(r_test, alternate)))
+
+        handle_node(node['consequent'])
+        r_cons = node['consequent']['register']
+        asm.append(gen_ins('mov r{} r{}'.format(r_result, r_cons)))
+        asm.append(gen_ins('jmp :{}'.format(end_conditional)))
+
+        asm.append(gen_ins(':{}'.format(alternate)))
+        handle_node(node['alternate'])
+        r_alt = node['alternate']['register']
+        asm.append(gen_ins('mov r{} r{}'.format(r_result, r_alt)))
+
+        asm.append(gen_ins(':{}'.format(end_conditional)))
 
     elif t == 'IfStatement':
         '''
