@@ -1,3 +1,5 @@
+console.log('ello');
+
 /*
 // assignment operators test
 a = 10;
@@ -51,12 +53,6 @@ console.log(a)
 a = 10;
 a ||= 2;
 console.log(a)
-*/
-
-/*
-
-    | "||=" | "&&=" | "??="
-
 */
 
 /*

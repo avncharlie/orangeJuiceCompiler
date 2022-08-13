@@ -28,6 +28,10 @@ todo:
     - error messages?
     - var hoisting?
     - try / catch
+    - definetely could refactor code to avoid duplicating MemberExpression code
+      everywhere (have a version that you can select what you want held or
+      freed)
+      
 
 possible bugs:
     - remove_all_var_registers called for while loops but not with for loops 
@@ -35,6 +39,12 @@ possible bugs:
     - definetely a bunch of register leaking happening
     - undefined / null not defined well for all instructions in VM
       should have a standard function to retrieve value for argument
+    - protection for re-evaluating member expression properties probably doesn't
+      work in all cases (band aid solution)
+    - var scoping incorrect maybe?
+      vars should access the closest var but looks like they are accessing the
+      most global var at the moment?
+      need to investigate more
 '''
 
 DEBUG = False; DEBUGDEBUG = False
@@ -60,7 +70,7 @@ asm = []
 
 loc_info = None
 
-used_names = []
+used_names = ['function_map'] # used in vm
 debug_name_counter = 0
 def get_name(name='ojc'):
     '''
@@ -100,7 +110,7 @@ def gen_ins(ins):
     '''
     helper function to generate instructions from a string representation
 
-    op r5 #5 "5" None !True = op <register 5> <number 5> <string 5> str null true
+    op r5 #5 """5""" None !True = op <register 5> <number 5> <string 5> str null true
 
     adds string representation as 'string_repr' attribute
     '''
@@ -112,7 +122,23 @@ def gen_ins(ins):
         }
 
     arguments = []
-    ins_split = shlex.split(ins, posix=False)
+
+    # shlex with the posix flag splits 'foo """bar"""'  as ['foo', '""', '"bar"', '""']
+    # a bit of ugly code to make it split instead like ['foo', '"""bar"""']
+    temp_split = shlex.split(ins, posix=False)
+    ins_split = []
+    seen_q = 0
+    for i, part in enumerate(temp_split):
+        if part[0] == '"':
+            seen_q += 1
+            if seen_q == 2 and i != len(temp_split) and temp_split[i+1][0] == '"':
+                ins_split.pop()
+                part = '""' + part + '""'
+            elif seen_q == 3:
+                seen_q = 0
+                continue
+        ins_split.append(part)
+
     for part in ins_split[1:]:
         f_part = {}
         if part[0] in ['"', "'"]:
@@ -264,8 +290,11 @@ def handle_node(node, named_block=None, declare_func_mode=False):
     global scopes, scopes_backup
     global loc_info
 
+    #print(node['type'])
     if 'loc' in node:
         loc_info = node['loc']
+        #print(node['loc'])
+
 
     t = node["type"]
 
@@ -296,7 +325,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             func_preset_vars = {}
             for arg in node['params']:
                 arg_id = get_name(arg['name'])
-                asm.append(gen_ins('arrpush r{} "{}"'.format(arg_list_reg, arg_id)))
+                asm.append(gen_ins('arrpush r{} """{}"""'.format(arg_list_reg, arg_id)))
                 func_preset_vars[arg['name']] = {
                     'id': arg_id,
                     'register': None,
@@ -324,7 +353,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
                 }
 
                 # create var at runtime
-                asm.append(gen_ins('setvar "{}" r{}'.format(func_id, func_reg)))
+                asm.append(gen_ins('setvar """{}""" r{}'.format(func_id, func_reg)))
 
             # store names for handling run
             node['func_name'] = func_name
@@ -428,7 +457,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
                 handle_node(callee['property'])
                 prop = 'r{}'.format(callee['property']['register'])
             else:
-                prop = '"{}"'.format(callee['property']['name'])
+                prop = '"""{}"""'.format(callee['property']['name'])
 
             # get function
             func_reg = request_register()
@@ -469,7 +498,6 @@ def handle_node(node, named_block=None, declare_func_mode=False):
 
     elif t == 'VariableDeclaration':
         for decl in node['declarations']:
-
             var_name = decl['id']['name']
             var_type = node['kind']
 
@@ -485,16 +513,17 @@ def handle_node(node, named_block=None, declare_func_mode=False):
 
                 # if variable already declared and init is None, don't do anything
                 if decl['init'] is None:
-                    return
+                    continue
 
                 # otherwise treat as assignment expression
                 handle_node({
                     'type': 'AssignmentExpression',
                     'operator': '=',
                     'left': decl['id'],
-                    'right': decl['init']
+                    'right': decl['init'],
+                    'loc': decl['loc']
                 })
-                return
+                continue
 
             # create new variable
             var_id = get_name('var_' + var_name)
@@ -514,7 +543,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             }
             # create var at runtime
             r = 'Undefined' if r == None else 'r{}'.format(r)
-            asm.append(gen_ins('setvar "{}" {}'.format(var_id, r)))
+            asm.append(gen_ins('setvar """{}""" {}'.format(var_id, r)))
 
     elif t == 'Identifier':
         # tries to get load identifier from scope table or from global and puts
@@ -536,7 +565,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
                 # variable not in register, only in runtime var table
                 # so retrieve with getvar and put in register
                 r = request_register()
-                asm.append(gen_ins('getvar "{}" r{}'.format(id_info['id'], r)))
+                asm.append(gen_ins('getvar """{}""" r{}'.format(id_info['id'], r)))
                 node['register'] = r
 
         else:
@@ -544,7 +573,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             node['global_prop'] = True 
             r = request_register()
             asm.append(gen_ins('global r{}'.format(r)))
-            asm.append(gen_ins('getprop r{} "{}" r{}'.format(r, name, r)))
+            asm.append(gen_ins('getprop r{} """{}""" r{}'.format(r, name, r)))
             node['register'] = r
 
     elif t == 'UpdateExpression':
@@ -564,7 +593,8 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             'right': {
                 'type': 'NumericLiteral',
                 'value': 1
-            }
+            },
+            'loc': node['loc']
         }
         handle_node(fake_assignment)
         assigned_reg = fake_assignment['register']
@@ -665,7 +695,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         r = request_register()
         pattern = node['pattern']
         flags = node['flags']
-        asm.append(gen_ins('regex "{}" "{}" r{}'.format(pattern, flags, r)))
+        asm.append(gen_ins('regex """{}""" """{}""" r{}'.format(pattern, flags, r)))
         node['register'] = r
 
     elif t == 'NullLiteral':
@@ -682,7 +712,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
     elif t == 'StringLiteral':
         r = request_register()
         s = node['value']
-        asm.append(gen_ins('mov r{} "{}"'.format(r, s)))
+        asm.append(gen_ins('mov r{} """{}"""'.format(r, s)))
         node['register'] = r
 
     elif t == 'BooleanLiteral':
@@ -697,13 +727,32 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         left = node['left']
         right = node['right']
 
-        is_member = False
-        if left['type'] == 'MemberExpression':
-            is_member = True
+        r_left = None
 
-        # needed for operations like +=, -=, etc
-        handle_node(left)
-        r_left = left['register']
+        obj_reg = None
+        prop_reg = None
+        prop = None
+        if left['type'] == 'MemberExpression':
+            # to avoid evaluating obj[foo] twice in getting and setting member
+            # expression, we must deal load them without handling them with
+            # MemberExpression handler. this is as that handler frees the
+            # register that the stores the property whereas we will keep it
+            # to set the member expression
+            handle_node(left['object'])
+            obj_reg = left['object']['register']
+            if left['computed']:
+                handle_node(left['property'])
+                prop_reg = left['property']['register']
+                prop = 'r{}'.format(prop_reg)
+            else:
+                prop = '"""{}"""'.format(left['property']['name'])
+            # store prop in r_left
+            r_left = request_register()
+            asm.append(gen_ins('getprop r{} {} r{}'.format(obj_reg, prop, r_left)))
+        else:
+            # needed for operations like +=, -=, etc
+            handle_node(left)
+            r_left = left['register']
 
         # handle value
         handle_node(right)
@@ -750,31 +799,22 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         else:
             print('AssignmentExpression operation {} not supported!'.format(op))
 
-        if is_member:
-            handle_node(left['object'])
-            obj_reg = left['object']['register']
-
-            if left['computed']:
-                handle_node(left['property'])
-                prop = 'r{}'.format(left['property']['register'])
-            else:
-                prop = '"{}"'.format(left['property']['name'])
-
+        if left['type'] == 'MemberExpression':
+            # call setprop with saved registers
             asm.append(gen_ins('setprop r{} {} r{}'.format(obj_reg, prop, r_left)))
-
+            if prop_reg is not None:
+                # free register storing property if computed
+                free_register(prop_reg)
             free_register(obj_reg)
-            if left['computed']:
-                free_register(left['property']['register'])
-                
 
         elif 'id' in left:
             # update var table to new assignment
-            asm.append(gen_ins('setvar "{}" r{}'.format(left['id'], r_left)))
+            asm.append(gen_ins('setvar """{}""" r{}'.format(left['id'], r_left)))
         elif 'global_prop' in left:
             # update global property
             r = request_register()
             asm.append(gen_ins('global r{}'.format(r)))
-            asm.append(gen_ins('setprop r{} "{}" r{}'.format(r, left['name'], r_left)))
+            asm.append(gen_ins('setprop r{} """{}""" r{}'.format(r, left['name'], r_left)))
             free_register(r)
 
         # free right side as was only evaluated to assign to left
@@ -832,7 +872,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
                 handle_node(prop['value'])
                 val_reg = prop['value']['register']
 
-                k = 'r{}'.format(key) if key_isreg else '"{}"'.format(key)
+                k = 'r{}'.format(key) if key_isreg else '"""{}"""'.format(key)
                 asm.append(gen_ins('setprop r{} {} r{}'.format(obj_reg, k, val_reg)))
                 free_register(val_reg)
 
@@ -847,12 +887,13 @@ def handle_node(node, named_block=None, declare_func_mode=False):
                     'type': 'FunctionExpression',
                     'id': None,
                     'params': prop['params'],
-                    'body': prop['body']
+                    'body': prop['body'],
+                    'loc': prop['loc']
                 }
                 handle_node(fake_function)
                 method_reg = fake_function['register']
                 k = prop['key']['name']
-                asm.append(gen_ins('setprop r{} "{}" r{}'.format(obj_reg, k, method_reg)))
+                asm.append(gen_ins('setprop r{} """{}""" r{}'.format(obj_reg, k, method_reg)))
 
             else:
                 print('{} not implemented!'.format(prop['type']))
@@ -865,7 +906,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             handle_node(node['property'])
             prop = 'r{}'.format(node['property']['register'])
         else:
-            prop = '"{}"'.format(node['property']['name'])
+            prop = '"""{}"""'.format(node['property']['name'])
 
         # store prop in obj_reg
         asm.append(gen_ins('getprop r{} {} r{}'.format(obj_reg, prop, obj_reg)))
@@ -902,6 +943,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         # backup scope
         scope_stack_stack.append(scope_stack[:])
         scopes_backup.append(copy.deepcopy(scopes))
+        remove_all_var_registers()
 
         # bookkeep loop bounds for break and continue statements
         loopstack.append({
@@ -910,19 +952,25 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         })
 
         asm.append(gen_ins('push_store'))
-        # run initialise block
-        handle_node(node['init'])
+        # run initialise block if one exists
+        if node['init'] is not None:
+            handle_node(node['init'])
         asm.append(gen_ins(':' +start_for))
-        # run test
-        handle_node(node['test'])
-        t_result = node['test']['register']
-        # end loop if needed
-        asm.append(gen_ins('jnt r{} :{}'.format(t_result, end_for)))
+
+        # run test if one exists
+        if node['test'] is not None:
+            handle_node(node['test'])
+            t_result = node['test']['register']
+            # end loop if needed
+            asm.append(gen_ins('jnt r{} :{}'.format(t_result, end_for)))
+
         # loop body
         handle_node(node['body'], named_block=t)
         asm.append(gen_ins(':' + end_body))
-        # update
-        handle_node(node['update'])
+
+        # update if update exists
+        if node['update'] is not None:
+            handle_node(node['update'])
         # restart loop
         asm.append(gen_ins('jmp :{}'.format(start_for)))
         asm.append(gen_ins(':{}'.format(end_for)))
@@ -950,7 +998,6 @@ def handle_node(node, named_block=None, declare_func_mode=False):
 
         # TODO: any problems, 
         #   backup up registers too
-        #   call remove_all_var_registers on current scope
 
         start_while = get_name('start_while')
         end_while = get_name('end_while')
@@ -1153,8 +1200,8 @@ def handle_block(block, base_node, root=False, preset_vars=None):
     for node in block:
         if node['type'] == 'VariableDeclaration' and node['kind'] == 'var':
             just_declaration = copy.deepcopy(node)
-            if 'init' in just_declaration:
-                del just_declaration['init']
+            for decl in just_declaration['declarations']:
+                decl['init'] = None
             handle_node(just_declaration)
 
     # this round will handle everything else
@@ -1163,7 +1210,6 @@ def handle_block(block, base_node, root=False, preset_vars=None):
 
 
     # deconstruct scope:
-    #return
 
     # no need to deconstruct if root; program ended
     if root: return
@@ -1176,7 +1222,7 @@ def handle_block(block, base_node, root=False, preset_vars=None):
     declared = scopes[scope_id]['declared']
     for symbol in declared:
         symbol = declared[symbol]
-        asm.append(gen_ins('delvar "{}"'.format(symbol['id'])))
+        asm.append(gen_ins('delvar """{}"""'.format(symbol['id'])))
         free_register(symbol['register'], force=True)
     # delete from scope db
     del scopes[scope_id]
@@ -1235,10 +1281,10 @@ instructions_string = ''
 for ins in asm: 
     instructions_string += ins['string_repr'] + '\n'
 
-if 'silent' not in sys.argv:
+if '-l' in sys.argv:
     print(instructions_string)
 
-f = open('ins_read', 'w')
+f = open('.ins_read', 'w')
 f.write(instructions_string)
 f.close()
 
@@ -1255,3 +1301,5 @@ else:
     json.dump(instructions, out_file)
 
 out_file.close()
+
+#print(used_names, len(used_names))

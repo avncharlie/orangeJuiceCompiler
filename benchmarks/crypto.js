@@ -1671,6 +1671,7 @@ setupEngine(am3, 28);
 var TEXT = "The quick brown fox jumped over the extremely lazy frog! " +
     "Now is the time for all good men to come to the party.";
 var encrypted;
+var decrypted;
 
 function encrypt() {
   var RSA = new RSAKey();
@@ -1683,12 +1684,19 @@ function decrypt() {
   var RSA = new RSAKey();
   RSA.setPublic(nValue, eValue);
   RSA.setPrivateEx(nValue, eValue, dValue, pValue, qValue, dmp1Value, dmq1Value, coeffValue);
-  var decrypted = RSA.decrypt(encrypted);
-  console.log(decrypted);
-  if (decrypted != TEXT) {
-    throw new Error("Crypto operation failed");
-  }
+  decrypted = RSA.decrypt(encrypted);
+  
 }
 
+console.log('encrypting...')
 encrypt()
+console.log('encrypted.')
+console.log('decrypting...');
+
 decrypt()
+
+if (decrypted != TEXT) {
+    console.log("decryption failed: " + decrypted);
+} else {
+    console.log('decrypted: ' + decrypted);
+}

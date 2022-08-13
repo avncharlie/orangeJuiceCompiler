@@ -14,13 +14,13 @@ let instruction_index = 0
 let label_indexes = {}
 let reg_stack = []
 let registers = []
-let variables = [{}]
+let variables = [{'function_map': false}]
 let this_stack = [globalThis]
 
 let operations = {
 
     push_store(args) {
-        variables.push({});
+        variables.push({'function_map': false});
         instruction_index += 1;
     },
 
@@ -53,7 +53,7 @@ let operations = {
             let instruction_index_backup = instruction_index;
 
             // create new varmap for function declared vars
-            let func_varmap = {};
+            let func_varmap = {'function_map': true};
             variables.push(func_varmap);
 
             // setup arguments (manually set them in varmap)
@@ -64,8 +64,16 @@ let operations = {
             // run function at function label and get return value
             let rval = run({ start_at_label: func_start_label });
 
-            // pop varmap
-            variables.pop();
+            // pop scopes until function scope reavhed
+            let seen_own_frame = false;
+            for (let index = variables.length - 1; index >= 0; index--) {
+                if (variables[index]['function_map']) {
+                    // this is our own frame
+                    variables.pop() 
+                    break;
+                }
+                variables.pop()
+            }
 
             // restore instruction index
             instruction_index = instruction_index_backup;
@@ -168,7 +176,6 @@ let operations = {
     },
 
     setvar(args) {
-
         let var_name = args[0].value;
         let value = args[1];
 
@@ -180,30 +187,43 @@ let operations = {
         }
 
         // pick variable from scope from favouring more global scopes
-        let varmap = variables[variables.length - 1]
-        for (let scope of variables) {
-            if (var_name in scope) {
-                varmap = scope
-            } 
+        let varmap = variables[variables.length - 1];
+        let seen_own_frame = false;
+        for (let index = variables.length - 1; index >= 0; index--) {
+            if (variables[index]['function_map']) {
+                if (seen_own_frame) {
+                    continue; // don't set variables in other functions
+                }
+                seen_own_frame = true
+            }
+            if (var_name in variables[index]) {
+                varmap = variables[index];
+                break;
+            }
         }
-
         varmap[var_name] = val
         instruction_index += 1;
     },
 
     getvar(args) {
-
         let var_name = args[0].value;
         let reg = args[1].value;
 
         // pick variable from scope from favouring more local scopes
-        let varmap = variables[0]
+        let varmap = variables[0];
+        let seen_own_frame = false;
         for (let index = variables.length - 1; index >= 0; index--) {
+            if (variables[index]['function_map']) {
+                if (seen_own_frame) {
+                    continue; // don't retrieve variables in other functions
+                }
+                seen_own_frame = true
+            }
             if (var_name in variables[index]) {
-                varmap = variables[index]
+                varmap = variables[index];
+                break;
             }
         }
-
         registers[reg] = varmap[var_name];
         instruction_index += 1;
     },
@@ -441,6 +461,7 @@ let operations = {
 
     nop(args) {
         instruction_index += 1;
+        debugger;
     },
 
     regex(args) {
@@ -463,6 +484,8 @@ function populate_label_indexes() {
     }
 }
 
+var run_ins = 0;
+
 function run(args) {
 
     if (args != undefined) {
@@ -471,11 +494,8 @@ function run(args) {
     }
 
     while (instruction_index < instructions.length) {
+        run_ins++;
         let ins = instructions[instruction_index]
-
-        if (instruction_index == 1388) {
-            debugger;
-        }
 
         if (ins.type == 'label') {
             instruction_index += 1;
@@ -498,21 +518,24 @@ function run(args) {
             //console.log(ins.string_repr);
             operations[ins.op](ins.args);
         } catch(err) {
+            console.log(ins);
             console.log('ERROR: ' + err.message);
             console.log('...... instruction index: ' + instruction_index);
             console.log('...... instruction: ' + ins.string_repr);
             console.log('...... approximate location in source: line ' + ins.approx_loc);
-            throw err;
             process.exit();
         }
         //console.log(registers, variables);
     }
 }
 
+//setInterval(function() { console.log('hi'); }, 50)
+
 populate_label_indexes();
 run()
 // end vm
 
-console.log('--------');
-console.log(variables);
+//console.log('--------');
+//console.log(variables);
 //console.log(registers);
+//
