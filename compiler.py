@@ -48,7 +48,7 @@ possible bugs:
 '''
 
 DEBUG = False; DEBUGDEBUG = False
-#DEBUG = True; DEBUGDEBUG = False
+DEBUG = True; DEBUGDEBUG = False
 #DEBUG = True; DEBUGDEBUG = True
 
 # if registers[x] == false or doesn't exist, register unclaimed
@@ -63,7 +63,7 @@ scope_stack = [None]
 curr_scope = lambda : scope_stack[len(scope_stack)-1]
 
 # TODO: document
-loopstack = []
+break_stack = []
 
 branch_counter = 0
 asm = []
@@ -285,6 +285,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
     will also return register
     '''
 
+    global asm
     global registers, reg_stack
     global scope_stack, scope_stack_stack
     global scopes, scopes_backup
@@ -919,10 +920,10 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             free_register(node['property']['register'])
 
     elif t == 'BreakStatement':
-        asm.append(gen_ins('jmp :{}'.format(loopstack[len(loopstack)-1]['loop_end'])))
+        asm.append(gen_ins('jmp :{}'.format(break_stack[len(break_stack)-1]['loop_end'])))
 
     elif t == 'ContinueStatement':
-        asm.append(gen_ins('jmp :{}'.format(loopstack[len(loopstack)-1]['continue_loc'])))
+        asm.append(gen_ins('jmp :{}'.format(break_stack[len(break_stack)-1]['continue_loc'])))
 
     elif t == 'ForStatement':
         '''
@@ -946,7 +947,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         remove_all_var_registers()
 
         # bookkeep loop bounds for break and continue statements
-        loopstack.append({
+        break_stack.append({
             'continue_loc': end_body,
             'loop_end': end_for,
         })
@@ -977,15 +978,17 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         asm.append(gen_ins('pop_store'))
 
         # no longer in loop, remove bookkeeping info
-        loopstack.pop()
+        break_stack.pop()
 
         # restore backed up scope
         scope_stack = scope_stack_stack.pop()
         scopes = scopes_backup.pop()
 
 
-    elif t == 'WhileStatement':
+    elif t in ['WhileStatement', 'DoWhileStatement']:
         '''
+        while loop:
+
         <create store>
         :start_while
         <test>
@@ -994,6 +997,8 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         jmp :start_while
         :end_while
         <pop store>
+
+        move body before <test> for do while
         '''
 
         # TODO: any problems, 
@@ -1008,7 +1013,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         remove_all_var_registers()
 
         # bookkeep loop bounds for break and continue statements
-        loopstack.append({
+        break_stack.append({
             'continue_loc': start_while,
             'loop_end': end_while,
         })
@@ -1016,13 +1021,21 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         # create store and start loop
         asm.append(gen_ins('push_store'))
         asm.append(gen_ins(':'+start_while))
+
+        if t == 'DoWhileStatement':
+            # loop body
+            handle_node(node['body'], named_block=t)
+
         # handle test
         handle_node(node['test'])
         t_result = node['test']['register']
         # end loop if needed
         asm.append(gen_ins('jnt r{} :{}'.format(t_result, end_while)))
-        # loop body
-        handle_node(node['body'], named_block=t)
+
+        if t == 'WhileStatement':
+            # loop body
+            handle_node(node['body'], named_block=t)
+
         # restart loop
         asm.append(gen_ins('jmp :{}'.format(start_while)))
         asm.append(gen_ins(':'+end_while))
@@ -1030,7 +1043,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         asm.append(gen_ins('pop_store'))
 
         # no longer in loop, remove bookkeeping info
-        loopstack.pop()
+        break_stack.pop()
 
         # restore backed up scope
         scope_stack = scope_stack_stack.pop()
@@ -1159,11 +1172,104 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             handle_node(node['alternate'], named_block=t)
 
         asm.append(gen_ins(':'+end_if))
-        
+
+    elif t == 'SwitchStatement':
+        '''
+        <evaluate discriminant>
+        <decide what case to take and jump there>
+        :case1
+        <case1 code>
+        ...
+        '''
+
+        end_switch = get_name('end_switch')
+
+        # backup scope (we do this as a break can come from anywhere destroying
+        # whatever scope is built up)
+        scope_stack_stack.append(scope_stack[:])
+        scopes_backup.append(copy.deepcopy(scopes))
+
+        # when break occurs, jump to end of switch
+        break_stack.append({
+            'loop_end': end_switch,
+        })
+
+        asm.append(gen_ins('push_store'))
+
+        # generate combined block of all code in switch statement with labels at
+        # where different cases start
+        default_name = None
+        combined_block = []
+        for i, c in enumerate(node['cases']):
+            name = None
+            if c['test'] is None:
+                name = get_name('case_default')
+                default_name = name
+            else:
+                name = get_name('case_{}'.format(i))
+
+            c['label'] = name
+
+            # add labels between code blocks to jump to
+            combined_block.append({
+                'type': 'InstructionInsert',
+                'instructions': [
+                    gen_ins(':' + name)
+                ]
+            })
+            combined_block += c['consequent']
+
+        combined_block.append({
+            'type': 'InstructionInsert',
+            'instructions': [
+                gen_ins(':' + end_switch)
+            ]
+        })
+
+        handle_node(node['discriminant'])
+        d_reg = node['discriminant']['register']
+
+        # generate code deciding what case to take
+        r_result = request_register()
+        for c in node['cases']:
+            # test will only be None if default case 
+            if c['test'] is not None:
+                # test case, if equal jump to label
+                handle_node(c['test'])
+                r_test = c['test']['register']
+                asm.append(gen_ins('eqt r{} r{} r{}'.format(d_reg, r_test, r_result)))
+                asm.append(gen_ins('jt r{} :{}'.format(r_result, c['label'])))
+
+                free_register(r_test)
+
+        free_register(d_reg)
+        free_register(r_result)
+
+        # if no case matches either go to end of switch or to default case if
+        # it exists
+        if default_name is not None:
+            asm.append(gen_ins('jmp :{}'.format(default_name)))
+        else:
+            asm.append(gen_ins('jmp :{}'.format(end_switch)))
+
+
+        handle_block(combined_block, base_node=t)
+
+        asm.append(gen_ins('pop_store'))
+
+        # no longer in switch, remove bookkeeping info
+        break_stack.pop()
+
+        # restore backed up scope
+        scope_stack = scope_stack_stack.pop()
+        scopes = scopes_backup.pop()
+
+    elif t == 'InstructionInsert':
+        # not generated from babel, used to insert assembly
+        asm += node['instructions']
+
     else:
         print('{} node not implemented!'.format(t))
-        #print(json.dumps(node, indent=2))
-        #exit()
 
             
 def handle_block(block, base_node, root=False, preset_vars=None):

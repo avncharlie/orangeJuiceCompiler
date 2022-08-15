@@ -1,4 +1,6 @@
+#!/usr/bin/env python3
 import os
+import sys
 import subprocess
 import shlex
 
@@ -53,36 +55,32 @@ def run_test(f):
 
     return result
 
-test_files = [f for f in os.listdir() if f.startswith('test_')]
-benchnmarks = ['../benchmarks/'+f for f in os.listdir('../benchmarks')]
 
-succ = 0
-fail = 0
+def test_files(file_list, name='tests'):
+    succ = 0
+    fail = 0
 
-print('* unit tests *')
-for test_file in test_files:
-    print('testing: {} ... '.format(test_file))
-    result = run_test(test_file)
-    if result: succ += 1
-    else: fail += 1
-    print('...'+('PASSED' if result else 'FAILED'))
+    for test_file in file_list:
+        print('testing: {} ... '.format(test_file))
+        result = run_test(test_file)
+        if result: succ += 1
+        else: fail += 1
+        print('...'+('PASSED' if result else 'FAILED'))
+        print()
+
+    print('{} {} passed, {} {} failed.'.format(succ, name, fail, name))
     print()
 
-print('{} tests passed, {} tests failed'.format(succ, fail))
-print()
 
+if len(sys.argv) == 1:
+    tests = [f for f in os.listdir() if f.startswith('test_')]
+    benchmarks = ['../benchmarks/'+f for f in os.listdir('../benchmarks')]
 
-succ = 0
-fail = 0
-print('* benchmarks *')
-for test_file in benchnmarks:
-    print('testing: {} ... '.format(test_file))
-    result = run_test(test_file)
-    if result: succ += 1
-    else: fail += 1
-    print('...'+('PASSED' if result else 'FAILED'))
-    print()
+    print('* unit tests *')
+    test_files(tests)
 
-run_command('rm ast .ins_read ins.json')
-
-print('{} benchmarks passed, {} benchmarks failed'.format(succ, fail))
+    print('* benchmarks *')
+    test_files(benchmarks, 'benchmarks')
+else:
+    tests = sys.argv[1:]
+    test_files(tests)
