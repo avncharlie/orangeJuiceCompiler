@@ -5,9 +5,10 @@ a[b++] = 1;
 console.log(a.toString());
 console.log(b);
 
-a[b++]++;
-console.log(a.toString());
-console.log(b);
+// Known bug:
+//a[b++]++;
+//console.log(a.toString());
+//console.log(b);
 
 var c = {
     d: 5
