@@ -3,7 +3,7 @@ import base64
 
 usage = 'python3 create_combined_vm.py instructions out_vm template_vm'
 
-ins_file = 'out.ins'
+ins_file = 'ins.json'
 out_vm = 'out.js'
 vm_file = 'debug_vm.js'
 

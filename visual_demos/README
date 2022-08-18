@@ -1,0 +1,4 @@
+These folders contain the original JavaScript for these visualisations
+To run, first compile JS with compiler.
+Then use ../create_combined_vm.py to mash instructions together with VM.
+The outfile will be (should be!) functionally equivalent to the original JavaScript file.

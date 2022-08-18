@@ -2,6 +2,7 @@
 ast
 .ins_read
 ins.json
+out.js
 
 # mac
 .DS_Store

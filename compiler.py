@@ -32,7 +32,6 @@ todo:
       everywhere (have a version that you can select what you want held or
       freed)
       
-
 possible bugs:
     - remove_all_var_registers called for while loops but not with for loops 
       it probably should?
@@ -55,6 +54,7 @@ DEBUG = True; DEBUGDEBUG = False
 reg_stack = []
 registers = [False, False, False]
 
+vars_changed = []
 scopes_backup = []
 scopes = {}
 
@@ -62,7 +62,6 @@ scope_stack_stack = []
 scope_stack = [None]
 curr_scope = lambda : scope_stack[len(scope_stack)-1]
 
-# TODO: document
 break_stack = []
 
 branch_counter = 0
@@ -252,13 +251,23 @@ def get_var_from_id(var_id):
                 return scopes[scope]['declared'][var_name]
     return None
 
+def nullify_var(var_id):
+    '''
+    set variable register to null
+    TODO: use this in FunctionDeclaration node 
+    '''
+    for scope in scopes:
+        for var_name in scopes[scope]['declared']:
+            if scopes[scope]['declared'][var_name]['id'] == var_id:
+                scopes[scope]['declared'][var_name]['register'] = None
+
 def search_scope_table(scope, name, scope_boundary=None):
     '''
     find variable referenced by identifier name
 
     if scope_boundary is True: only look at current scope
     otherwise search up until scope_boundary scope created found
-    will return object in 'declared' list for variable or None
+    will return (object in 'declared' list for variable or None, scope found in)
     '''
 
     # try to find variable name in scope
@@ -267,22 +276,23 @@ def search_scope_table(scope, name, scope_boundary=None):
 
         if name in scopes[scope]['declared']:
             # name found!
-            return scopes[scope]['declared'][name]
+            return (scopes[scope]['declared'][name], scope)
         elif scope_boundary is True:
             # not in current scope, exit
-            return None
+            return (None, None)
         else:
             # not in current scope, lets look up
            scope = scopes[scope]['parent']
 
     # name not found
-    return None
+    return (None, None)
 
-def handle_node(node, named_block=None, declare_func_mode=False):
+def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=False):
     '''
     if given expression, assign reg to current_scope, t
     will be attached in 'register' attribute
     will also return register
+    document! especially keyword arguments
     '''
 
     global asm
@@ -385,6 +395,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         scope_stack_stack.append(scope_stack[:])
         scopes_backup.append(copy.deepcopy(scopes))
         remove_all_var_registers()
+        vars_changed.append([])
 
         # step 6: handle body of function with arguments as preset vars
         asm.append(gen_ins(':' + func_label)) # start label
@@ -398,6 +409,9 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         registers = reg_stack.pop()
         scope_stack = scope_stack_stack.pop()
         scopes = scopes_backup.pop()
+
+        for var in vars_changed.pop():
+            nullify_var(var)
 
     elif t == 'ReturnStatement':
         if node['argument'] is not None:
@@ -504,7 +518,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
 
             # first check if variable already declared in scope (appropriate to its declaration)
             scope_boundary = 'FunctionExpression' if var_type == 'var' else True
-            var_info = search_scope_table(curr_scope(), var_name, scope_boundary)
+            var_info, _ = search_scope_table(curr_scope(), var_name, scope_boundary)
 
             if var_info is not None:
                 if var_info['type'] != 'var':
@@ -549,14 +563,22 @@ def handle_node(node, named_block=None, declare_func_mode=False):
     elif t == 'Identifier':
         # tries to get load identifier from scope table or from global and puts
         # in register. essentially acts as expression node
+        # also stores scope identifier was loaded from 
 
         name = node['name']
 
         # try to find identifier in scope table
-        id_info = search_scope_table(curr_scope(), name)
+        id_info, scope = search_scope_table(curr_scope(), name)
 
         if id_info is not None:
             # identifier found, retrieve from var table if not already in register
+            node['scope'] = scope
+
+            # record assignments to variables
+            if vars_changed != []:
+                top_changed = vars_changed[len(vars_changed) - 1]
+                if id_info['id'] not in top_changed:
+                    top_changed.append(id_info['id'])
 
             node['id'] = id_info['id'] # store runtime variable id in node
             if id_info['register'] is not None:
@@ -724,6 +746,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
 
     elif t == 'AssignmentExpression':
         # asign variables (through setvar) or object/arrays (through setprop)
+        # or global properties (through setprop)
 
         left = node['left']
         right = node['right']
@@ -739,7 +762,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             # MemberExpression handler. this is as that handler frees the
             # register that the stores the property whereas we will keep it
             # to set the member expression
-            handle_node(left['object'])
+            handle_node(left['object'], assigning_ids=True)
             obj_reg = left['object']['register']
             if left['computed']:
                 handle_node(left['property'])
@@ -752,7 +775,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
             asm.append(gen_ins('getprop r{} {} r{}'.format(obj_reg, prop, r_left)))
         else:
             # needed for operations like +=, -=, etc
-            handle_node(left)
+            handle_node(left, assigning_ids=True)
             r_left = left['register']
 
         # handle value
@@ -900,7 +923,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
                 print('{} not implemented!'.format(prop['type']))
 
     elif t == 'MemberExpression':
-        handle_node(node['object'])
+        handle_node(node['object'], assigning_ids=assigning_ids)
         obj_reg = node['object']['register']
 
         if node['computed']:
@@ -945,6 +968,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         scope_stack_stack.append(scope_stack[:])
         scopes_backup.append(copy.deepcopy(scopes))
         remove_all_var_registers()
+        vars_changed.append([])
 
         # bookkeep loop bounds for break and continue statements
         break_stack.append({
@@ -984,6 +1008,10 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         scope_stack = scope_stack_stack.pop()
         scopes = scopes_backup.pop()
 
+        # remove reference to registers holding variables if changed inside loop
+        for var in vars_changed.pop():
+            nullify_var(var)
+
 
     elif t in ['WhileStatement', 'DoWhileStatement']:
         '''
@@ -1011,6 +1039,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         scope_stack_stack.append(scope_stack[:])
         scopes_backup.append(copy.deepcopy(scopes))
         remove_all_var_registers()
+        vars_changed.append([])
 
         # bookkeep loop bounds for break and continue statements
         break_stack.append({
@@ -1048,6 +1077,10 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         # restore backed up scope
         scope_stack = scope_stack_stack.pop()
         scopes = scopes_backup.pop()
+
+        # remove reference to registers holding variables if changed inside loop
+        for var in vars_changed.pop():
+            nullify_var(var)
 
     elif t == 'LogicalExpression':
         '''
@@ -1269,6 +1302,7 @@ def handle_node(node, named_block=None, declare_func_mode=False):
         asm += node['instructions']
 
     else:
+        print(node['loc'])
         print('{} node not implemented!'.format(t))
 
             

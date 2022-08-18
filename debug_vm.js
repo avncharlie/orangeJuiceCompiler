@@ -529,8 +529,6 @@ function run(args) {
     }
 }
 
-//setInterval(function() { console.log('hi'); }, 50)
-
 populate_label_indexes();
 run()
 // end vm
