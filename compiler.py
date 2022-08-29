@@ -448,24 +448,13 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
                 # use global context by default
                 ctx_reg = request_register()
                 asm.append(gen_ins('global r{}'.format(ctx_reg)))
-            else:
-                # use empty object as context for constructors
-                r_new_obj = request_register()
-                asm.append(gen_ins('obj r{}'.format(r_new_obj)))
-                ctx_reg = r_new_obj
-
-                # set __proto__ property to function.prototype
-                proto_prop = request_register()
-                asm.append(gen_ins('getprop r{} "prototype" r{}'.format(func_reg, proto_prop)))
-                asm.append(gen_ins('setprop r{} "__proto__" r{}'.format(ctx_reg, proto_prop)))
-                free_register(proto_prop)
 
         else:
             # we handle member expressions differently as we will use the object
             # as the context (e.g. for [].push, we need [] as the context)
             callee = node['callee']
 
-            # use calling object context
+            # use calling object context (unless is NewExpression)
             handle_node(callee['object'])
             ctx_reg = callee['object']['register']
 
@@ -481,6 +470,22 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
 
             if callee['computed']:
                 free_register(callee['property']['register'])
+
+            if t == 'NewExpression':
+                free_register(ctx_reg)
+
+        if t == 'NewExpression':
+            # use empty object as context for constructors
+            r_new_obj = request_register()
+            asm.append(gen_ins('obj r{}'.format(r_new_obj)))
+            ctx_reg = r_new_obj
+
+            # set __proto__ property to function.prototype
+            proto_prop = request_register()
+            asm.append(gen_ins('getprop r{} "prototype" r{}'.format(func_reg, proto_prop)))
+            asm.append(gen_ins('setprop r{} "__proto__" r{}'.format(ctx_reg, proto_prop)))
+            free_register(proto_prop)
+
 
         # call function
         asm.append(gen_ins('call r{} r{} r{} r{}'.format(func_reg, arg_reg, ctx_reg, result_reg)))
