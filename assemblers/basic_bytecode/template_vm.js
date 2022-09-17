@@ -27,6 +27,24 @@ let registers = []
 let variables = [{'function_map': false}]
 let this_stack = [globalThis]
 
+function bytes_to_float(bytes) {
+    var sign = (bytes & 0x80000000) ? -1 : 1;
+    var exponent = ((bytes >> 23) & 0xFF) - 127;
+    var significand = (bytes & ~(-1 << 23));
+
+    if (exponent == 128) 
+        return sign * ((significand) ? Number.NaN : Number.POSITIVE_INFINITY);
+
+    if (exponent == -127) {
+        if (significand == 0) return sign * 0.0;
+        exponent = -126;
+        significand /= (1 << 22);
+    } else significand = (significand | (1 << 23)) / (1 << 23);
+
+    return sign * significand * Math.pow(2, exponent);
+}
+
+
 function b_next() {
     return bytecode[instruction_index++];
 }
@@ -45,6 +63,8 @@ function argload_register_value_or_literal() {
             return registers[argload_number(false)]
         case 6:
             return argload_number(false);
+        case 7:
+            return argload_float(false);
         default:
             throw 'unknown arg type';
     }
@@ -63,6 +83,17 @@ function argload_string(skip) {
     instruction_index += size;
 
     return s;
+}
+
+function argload_float(skip) {
+    if (skip) {
+        instruction_index++;
+    }
+    let num = 0;
+    for (let x = 0; x<4; x++) {
+        num += b_next() * (256**x);
+    }
+    return bytes_to_float(num); 
 }
 
 function argload_number(skip) {
@@ -92,7 +123,7 @@ let operations = [
     },
 
     function whatsthis() {
-        let r = argload_number(true)
+        let r = argload_register(true)
         registers[r] = this_stack[this_stack.length - 1]
     },
 
@@ -483,7 +514,7 @@ function run(args) {
         //console.log(instruction_index, op, operations[op]);
 
         // special handling for return
-        if (op == 48) {
+        if (op == 47) {
             return argload_register_value_or_literal();
         }
 

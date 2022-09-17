@@ -1,8 +1,9 @@
 import sys
 import json
+import struct
 import base64
 
-if len(sys.argv) != 4:
+if len(sys.argv) < 4:
     print('usage: python3 assembler.py instructions template_vm out')
     exit()
 
@@ -21,6 +22,7 @@ ARG_TYPE_CODES = {
     'register': 5, 
     'number': 6, 
     'label': 6, 
+    'float': 7, 
 }
 
 OP_CODE_SIZE = 1
@@ -130,11 +132,17 @@ class Instruction:
             elif t == 'boolean':
                 assembled.append(int(v))
             elif t in ['register', 'number', 'label']:
-                l = byte_length(v)
-                if t == 'label':
-                    l = 4
-                assembled.append(l)
-                assembled += list(v.to_bytes(l, 'little'))
+                # yuck
+                if type(v) is float:
+                    assembled.pop()
+                    assembled.append(ARG_TYPE_CODES['float'])
+                    assembled += list(struct.pack('f', v))
+                else:
+                    l = byte_length(v)
+                    if t == 'label':
+                        l = 4
+                    assembled.append(l)
+                    assembled += list(v.to_bytes(l, 'little'))
             elif t not in ['null', 'Undefined']:
                 raise Exception('argument type {} unknown'.format(t))
 
@@ -216,6 +224,9 @@ assembler = Assembler(instructions)
 bytecode = assembler.assemble()
 encoded_bytecode = base64.b64encode(bytecode).decode('utf-8')
 
+if '-l' in sys.argv:
+    assembler.display()
+
 vm = "let bytecode = '{}';\n".format(encoded_bytecode)
 
 reading = False
@@ -232,6 +243,4 @@ with open(vm_file, 'r') as f:
 
 with open(outfile, 'w') as f:
     f.write(vm)
-
-
 
