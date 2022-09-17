@@ -14,22 +14,22 @@ def run_command(cmd):
 
 def run_vm(assembler, f):
     # generate ast
-    cmd = 'node ../generate_ast/index.js {} ast'.format(f)
+    cmd = 'node ../generate_ast/index.js {} build/ast'.format(f)
     out = run_command(cmd)
     if out is False: return (False, 'ast generation failed')
 
     # compile
-    cmd = 'python3 ../compiler.py ast ins.json'.format(f)
+    cmd = 'python3 ../compiler.py build/ast build/ins.json'.format(f)
     out = run_command(cmd)
     if out is False: return (False, 'compilation failed')
 
     # assemble
-    cmd = 'python3 {}/assembler.py ins.json {}/template_vm.js out.js'.format(assembler, assembler)
+    cmd = 'python3 {}/assembler.py build/ins.json {}/template_vm.js build/out.js'.format(assembler, assembler)
     out = run_command(cmd)
     if out is False: return (False, 'assembly failed')
 
     # run 
-    cmd = 'node ./out.js'
+    cmd = 'node build/out.js'
     out = run_command(cmd)
     if out is False: return (False, 'failed at runtime')
 
