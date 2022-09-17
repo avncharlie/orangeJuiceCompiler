@@ -336,14 +336,6 @@ let operations = {
         instruction_index += 1;
     },
 
-    neq(args) {
-        let r1 = registers[args[0].value];
-        let r2 = registers[args[1].value];
-        let ans = args[2].value;
-        registers[ans] = r1 != r2;
-        instruction_index += 1;
-    },
-
     mod(args) {
         let r1 = registers[args[0].value];
         let r2 = registers[args[1].value];

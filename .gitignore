@@ -3,6 +3,7 @@ ast
 .ins_read
 ins.json
 out.js
+bytecode
 
 # mac
 .DS_Store

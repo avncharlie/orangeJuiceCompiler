@@ -48,7 +48,7 @@ possible bugs:
 '''
 
 DEBUG = False; DEBUGDEBUG = False
-DEBUG = True; DEBUGDEBUG = False
+#DEBUG = True; DEBUGDEBUG = False
 #DEBUG = True; DEBUGDEBUG = True
 
 # if registers[x] == false or doesn't exist, register unclaimed
@@ -108,12 +108,13 @@ def _debug_print_ins(func):
 @_debug_print_ins
 def gen_ins(ins):
     '''
-    helper function to generate instructions from a string representation
+    function to generate instructions from a string representation
 
     op r5 #5 """5""" None !True = op <register 5> <number 5> <string 5> str null true
 
     adds string representation as 'string_repr' attribute
     '''
+    #print(len(scopes[curr_scope()]['declared'])) # TODO: how to deal with switch statements + need to make assembler
     if ins[0] == ':':
         return {
                 "type": "label",

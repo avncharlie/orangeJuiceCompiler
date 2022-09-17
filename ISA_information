@@ -108,7 +108,7 @@ le <r1> <r2> <ans>
     calc r1 < r2, store in ans
     r1, r2 and ans must be registers
 
-leeq
+leeq <r1> <r2> <ans>
     calc r1 <= r2, store in ans
     r1, r2 and ans must be registers
 
