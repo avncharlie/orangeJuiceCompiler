@@ -1,14 +1,12 @@
 #!/bin/sh
 
-echo "AST generating ..."
+# usage: ./build.sh assembler index
 
-if [ $# -eq 0 ]; then
-    node generate_ast/index.js index.js ast
-else
-    node generate_ast/index.js $1 ast
-fi
+echo "Generating AST ..."
+node generate_ast/index.js $2 build/ast
+echo "Compiling ..."
+python3 compiler.py build/ast build/ins.json
+echo "Assembling ..."
+python3 assemblers/$1/assembler.py build/ins.json assemblers/$1/template_vm.js build/out.js
 
-echo "Bytecode generating ..."
-python3 compiler.py ast ins.json $2
-
-echo "Bytecode in ./ins.json"
+echo "Output in build/out.js"

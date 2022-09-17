@@ -1,7 +1,5 @@
 #!/bin/sh
 
-./build.sh $1
-
+./build.sh $1 $2
 echo '--------'
-
-node debug_vm.js ins.json
+node build/out.js

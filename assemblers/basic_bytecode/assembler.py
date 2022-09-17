@@ -2,10 +2,16 @@ import sys
 import json
 import base64
 
-ins_file = open(sys.argv[1])
-template_vm = open(sys.argv[2])
+if len(sys.argv) != 4:
+    print('usage: python3 assembler.py instructions template_vm out')
+    exit()
 
-instructions = json.load(ins_file)['instructions']
+ins_file = sys.argv[1]
+vm_file = sys.argv[2]
+outfile = sys.argv[3]
+
+with open(ins_file) as ins:
+    instructions = json.load(ins)['instructions']
 
 ARG_TYPE_CODES = {
     'string': 1, 
@@ -206,10 +212,26 @@ class Assembler:
             print()
 
 
-        
 assembler = Assembler(instructions)
 bytecode = assembler.assemble()
-assembler.display()
+encoded_bytecode = base64.b64encode(bytecode).decode('utf-8')
 
-with open(sys.argv[3], 'wb') as outfile:
-    outfile.write(base64.b64encode(bytecode))
+vm = "let bytecode = '{}';\n".format(encoded_bytecode)
+
+reading = False
+with open(vm_file, 'r') as f:
+    for line in f:
+        if line == '// end vm\n':
+            reading = False
+
+        if reading:
+            vm += line
+
+        if line == '// begin vm\n':
+            reading = True
+
+with open(outfile, 'w') as f:
+    f.write(vm)
+
+
+

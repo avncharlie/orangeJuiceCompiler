@@ -1,20 +1,14 @@
 import sys
 import base64
 
-usage = 'python3 create_combined_vm.py instructions out_vm template_vm'
+if len(sys.argv) != 4:
+    print('usage: python3 assembler.py instructions template_vm out')
+    exit()
 
-ins_file = 'ins.json'
-out_vm = 'out.js'
-vm_file = 'debug_vm.js'
 
-if len(sys.argv) > 1:
-    ins_file = sys.argv[1]
-
-if len(sys.argv) > 2:
-    out_vm = sys.argv[2]
-
-if len(sys.argv) > 3:
-    vm_file = sys.argv[3]
+ins_file = sys.argv[1]
+vm_file= sys.argv[2]
+outfile = sys.argv[3]
 
 with open(ins_file, 'r') as f:
     b = base64.b64encode(f.read().encode('utf-8')).decode('utf-8')
@@ -33,5 +27,5 @@ with open(vm_file, 'r') as f:
         if line == '// begin vm\n':
             reading = True
 
-with open(out_vm, 'w') as f:
+with open(outfile, 'w') as f:
     f.write(vm)

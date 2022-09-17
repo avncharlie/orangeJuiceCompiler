@@ -12,7 +12,7 @@ def run_command(cmd):
         return False
     return r.stdout
 
-def run_vm(f):
+def run_vm(assembler, f):
     # generate ast
     cmd = 'node ../generate_ast/index.js {} ast'.format(f)
     out = run_command(cmd)
@@ -23,8 +23,13 @@ def run_vm(f):
     out = run_command(cmd)
     if out is False: return (False, 'compilation failed')
 
+    # assemble
+    cmd = 'python3 {}/assembler.py ins.json {}/template_vm.js out.js'.format(assembler, assembler)
+    out = run_command(cmd)
+    if out is False: return (False, 'assembly failed')
+
     # run 
-    cmd = 'node ../debug_vm.js ins.json'.format(f)
+    cmd = 'node ./out.js'
     out = run_command(cmd)
     if out is False: return (False, 'failed at runtime')
 
@@ -37,13 +42,13 @@ def run_node(f):
     if out is False: return False
     return out
 
-def run_test(f):
+def run_test(assembler, f):
     node_out = run_node(f)
     if node_out is False:
         print('test fault, failed running with node')
         return False
 
-    status, vm_out = run_vm(f)
+    status, vm_out = run_vm(assembler, f)
     if not status:
         print('vm failed, reason: {}'.format(vm_out))
         return False
@@ -56,31 +61,70 @@ def run_test(f):
     return result
 
 
-def test_files(file_list, name='tests'):
+summary = ""
+
+def test_files(assembler, file_list, name='tests'):
+    global summary
     succ = 0
     fail = 0
 
+    fails = []
     for test_file in file_list:
         print('testing: {} ... '.format(test_file))
-        result = run_test(test_file)
-        if result: succ += 1
-        else: fail += 1
+        result = run_test(assembler, test_file)
+        if result:
+            succ += 1
+        else:
+            fail += 1
+            fails.append(test_file)
+            
         print('...'+('PASSED' if result else 'FAILED'))
         print()
 
-    print('{} {} passed, {} {} failed.'.format(succ, name, fail, name))
-    print()
+    results = ""
 
+    results += '{} {} passed, {} {} failed.\n'.format(succ, name, fail, name)
+    if len(fails) > 0:
+        results += 'failed tests:\n'
+        for f in fails:
+            results += (' - {}\n'.format(f))
 
-if len(sys.argv) == 1:
+    print(results)
+
+    summary += results + '\n'
+
+def get_assemblers():
+    assembler_files = ['../assemblers/'+f for f in os.listdir('../assemblers')]
+    assemblers = []
+    for pos_assembler in assembler_files:
+        if os.path.isdir(pos_assembler):
+            assemblers.append(pos_assembler.split('/')[-1])
+    return assemblers
+
+if len(sys.argv) < 2:
+    print('usage: python3 run_tests.py assembler [tests]')
+    exit()
+
+assembler = sys.argv[1]
+valid_assemblers = get_assemblers()
+if assembler not in valid_assemblers:
+    print('"{}" not valid assembler, must be one of: {}'.format(assembler, valid_assemblers))
+    exit()
+
+assembler = '../assemblers/'+assembler
+    
+if len(sys.argv) == 2:
     tests = [f for f in os.listdir() if f.startswith('test_')]
     benchmarks = ['../benchmarks/'+f for f in os.listdir('../benchmarks')]
 
     print('* unit tests *')
-    test_files(tests)
+    test_files(assembler, tests)
 
     print('* benchmarks *')
-    test_files(benchmarks, 'benchmarks')
+    test_files(assembler, benchmarks, name='benchmarks')
 else:
-    tests = sys.argv[1:]
-    test_files(tests)
+    tests = sys.argv[2:]
+    test_files(assembler, tests)
+
+print('SUMMARY:')
+print(summary[:-1])

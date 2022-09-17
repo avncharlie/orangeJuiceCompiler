@@ -8,7 +8,7 @@ if (process.argv.length != 3) {
 let bytecode_file = process.argv[2];
 let bytecode = fs.readFileSync(bytecode_file, 'utf8');
 
-// begin template
+// begin vm
 function base64_to_bytearray(base64) {
     let binary_string = atob(base64);
     let len = binary_string.length;
@@ -501,3 +501,4 @@ function run(args) {
 }
 
 run();
+// end vm
