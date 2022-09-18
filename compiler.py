@@ -48,7 +48,7 @@ possible bugs:
 '''
 
 DEBUG = False; DEBUGDEBUG = False
-#DEBUG = True; DEBUGDEBUG = False
+DEBUG = True; DEBUGDEBUG = False
 #DEBUG = True; DEBUGDEBUG = True
 
 # if registers[x] == false or doesn't exist, register unclaimed
@@ -62,6 +62,7 @@ scopes = {}
 scope_stack_stack = []
 scope_stack = [None]
 curr_scope = lambda : scope_stack[len(scope_stack)-1]
+prev_scope = lambda : scope_stack[len(scope_stack)-2]
 
 break_stack = []
 
@@ -69,6 +70,8 @@ branch_counter = 0
 asm = []
 
 loc_info = None
+
+varset_table = []
 
 used_names = ['function_map'] # used in vm
 debug_name_counter = 0
@@ -105,8 +108,63 @@ def _debug_print_ins(func):
 
     return wrapper
 
+def _calculate_top_store(store_below=False, scopes_below=0):
+    store_stoppers = [
+        'Program',
+        'ForStatement',
+        'WhileStatement',
+        'DoWhileStatement',
+        'SwitchStatement',
+        'FunctionExpression',
+        'FunctionDeclaration'
+    ]
+
+    # start with function_map var accounted for
+    looking_through = scope_stack[1:len(scope_stack)-scopes_below][::-1]
+    if store_below:
+        new = []
+        capturing = False
+        for scope in looking_through:
+            if capturing:
+                new.append(scope)
+            created_from = scopes[scope]['created_from']
+            if created_from in store_stoppers:
+                capturing = True
+        looking_through = new
+
+    t = 1 
+    for scope in looking_through:
+        created_from = scopes[scope]['created_from']
+        t += len(scopes[scope]['declared']) 
+    
+        if created_from in store_stoppers:
+            break
+    return t
+
+def _current_top_store_declared(instr):
+    op = instr[0]
+
+    #if op in ['delvar']: print(json.dumps(scopes, indent=2))
+
+    t = _calculate_top_store()
+
+    if op == 'setvar':
+        var_name = instr[1][3:-3]
+        if var_name in varset_table:
+            # variable already declared
+            return t
+        varset_table.append(var_name)
+
+        # This setvar is creating this variable and increasing the vars in the 
+        # top store, but only after this instruction runs
+        # So at the time the VM sees this instruction, the variable hasn't been
+        # created yet (but it is bookkept in the compiler data store)
+        # So subtract 1 from t to fix
+        t -= 1
+    return t
+
 @_debug_print_ins
-def gen_ins(ins):
+def gen_ins(ins, forced_top_declared=None):
     '''
     function to generate instructions from a string representation
 
@@ -114,8 +172,8 @@ def gen_ins(ins):
 
     adds string representation as 'string_repr' attribute
     '''
-    #print(len(scopes[curr_scope()]['declared'])) # TODO: how to deal with switch statements + need to make assembler
     if ins[0] == ':':
+        print(ins)
         return {
                 "type": "label",
                 "id": ins[1:],
@@ -169,12 +227,23 @@ def gen_ins(ins):
 
         arguments.append(f_part)
 
+
+    # used for variable dependent op code obfuscation
+    curr_top_declared = forced_top_declared
+    if curr_top_declared is None:
+        curr_top_declared = _current_top_store_declared(ins_split)
+
+    print(curr_top_declared, ins) #DEBUG
+
+    approx_loc = loc_info['start']['line'] if loc_info is not None else 0
+
     return {
             "type": "operation",
             "op": ins_split[0],
             "args": arguments,
             "string_repr": ins,
-            "approx_loc": loc_info['start']['line']
+            "approx_loc": approx_loc,
+            "top_scope_declared": curr_top_declared
     }
 
 def request_register():
@@ -860,7 +929,8 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
 
     elif t == 'BlockStatement':
         name = t if named_block is None else named_block
-        handle_block(node['body'], name)
+        should_pop = None if 'pop_after_compile' not in node else node['pop_after_compile']
+        handle_block(node['body'], name, pop_after_compile=should_pop)
 
     elif t == 'ArrayExpression':
         r = request_register()
@@ -950,20 +1020,39 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
             free_register(node['property']['register'])
 
     elif t == 'BreakStatement':
-        asm.append(gen_ins('jmp :{}'.format(break_stack[len(break_stack)-1]['loop_end'])))
+        asm.append(gen_ins('pop_store'))
+
+        # as store is popped we need to force the top declared the top declared
+        # of the store below
+        below_scope_declared = _calculate_top_store(store_below=True)
+        asm.append(gen_ins('jmp :{}'.format(break_stack[len(break_stack)-1]['loop_end']),
+            forced_top_declared=below_scope_declared))
 
     elif t == 'ContinueStatement':
-        asm.append(gen_ins('jmp :{}'.format(break_stack[len(break_stack)-1]['continue_loc'])))
+        asm.append(gen_ins('pop_store'))
+
+        # same as break statement
+        below_scope_declared = _calculate_top_store(store_below=True)
+        asm.append(gen_ins('jmp :{}'.format(break_stack[len(break_stack)-1]['continue_loc']),
+            forced_top_declared=below_scope_declared))
 
     elif t == 'ForStatement':
         '''
         <init>
+
         :start_for
         <test>
         jnt :end_for
+
+        <create store>
         <body>
+        <pop store>
+
+        :end_body
+
         <update>
         jmp :start_for
+
         :end_for
         '''
 
@@ -971,11 +1060,14 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
         end_for = get_name('end_for')
         end_body = get_name('end_body')
 
-        # backup scope
-        scope_stack_stack.append(scope_stack[:])
-        scopes_backup.append(copy.deepcopy(scopes))
-        remove_all_var_registers()
-        vars_changed.append([])
+        # add pop store to end of body (create block if body not block)
+        if 'body' not in node['body']:
+            node['body'] = {
+                'type': 'BlockStatement',
+                'body': [ copy.deepcopy(node['body']) ],
+            }
+
+        node['body']['pop_after_compile'] = True
 
         # bookkeep loop bounds for break and continue statements
         break_stack.append({
@@ -983,11 +1075,16 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
             'loop_end': end_for,
         })
 
-        asm.append(gen_ins('push_store'))
         # run initialise block if one exists
         if node['init'] is not None:
             handle_node(node['init'])
         asm.append(gen_ins(':' +start_for))
+
+        # backup scope
+        scope_stack_stack.append(scope_stack[:])
+        scopes_backup.append(copy.deepcopy(scopes))
+        remove_all_var_registers()
+        vars_changed.append([])
 
         # run test if one exists
         if node['test'] is not None:
@@ -996,8 +1093,10 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
             # end loop if needed
             asm.append(gen_ins('jnt r{} :{}'.format(t_result, end_for)))
 
-        # loop body
+        # loop body (pop done through pop_after_compile flag)
+        asm.append(gen_ins('push_store'))
         handle_node(node['body'], named_block=t)
+
         asm.append(gen_ins(':' + end_body))
 
         # update if update exists
@@ -1006,7 +1105,6 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
         # restart loop
         asm.append(gen_ins('jmp :{}'.format(start_for)))
         asm.append(gen_ins(':{}'.format(end_for)))
-        asm.append(gen_ins('pop_store'))
 
         # no longer in loop, remove bookkeeping info
         break_stack.pop()
@@ -1024,14 +1122,16 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
         '''
         while loop:
 
-        <create store>
         :start_while
         <test>
         jnt :end_while
+
+        <create store>
         <body>
+        <pop store>
+
         jmp :start_while
         :end_while
-        <pop store>
 
         move body before <test> for do while
         '''
@@ -1048,18 +1148,27 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
         remove_all_var_registers()
         vars_changed.append([])
 
+        # add pop store to end of body (create block if body not block)
+        if 'body' not in node['body']:
+            node['body'] = {
+                'type': 'BlockStatement',
+                'body': [ copy.deepcopy(node['body']) ]
+            }
+
+        node['body']['pop_after_compile'] = True
+
         # bookkeep loop bounds for break and continue statements
         break_stack.append({
             'continue_loc': start_while,
             'loop_end': end_while,
         })
 
-        # create store and start loop
-        asm.append(gen_ins('push_store'))
+        # start loop
         asm.append(gen_ins(':'+start_while))
 
         if t == 'DoWhileStatement':
-            # loop body
+            # loop body (pop was inserted earlier)
+            asm.append(gen_ins('push_store'))
             handle_node(node['body'], named_block=t)
 
         # handle test
@@ -1069,14 +1178,13 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
         asm.append(gen_ins('jnt r{} :{}'.format(t_result, end_while)))
 
         if t == 'WhileStatement':
-            # loop body
+            # loop body (pop was inserted earlier)
+            asm.append(gen_ins('push_store'))
             handle_node(node['body'], named_block=t)
 
         # restart loop
         asm.append(gen_ins('jmp :{}'.format(start_while)))
         asm.append(gen_ins(':'+end_while))
-        # deconstruct store
-        asm.append(gen_ins('pop_store'))
 
         # no longer in loop, remove bookkeeping info
         break_stack.pop()
@@ -1291,15 +1399,19 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
         # not generated from babel, used to insert assembly
         asm += node['instructions']
 
+    elif t == 'UngeneratedInstructionInsert':
+        # not generated from babel, used to insert assembly
+        # generate now 
+        asm += [gen_ins(ins) for ins in node['instructions']]
+
     else:
         print(node['loc'])
         print('{} node not implemented!'.format(t))
 
             
-def handle_block(block, base_node, root=False, preset_vars=None):
+def handle_block(block, base_node, root=False, preset_vars=None, pop_after_compile=None):
     '''
     will create new scope and execute code in scope (if not root, root scope manually created)
-
     '''
 
     # create scope:
@@ -1338,22 +1450,35 @@ def handle_block(block, base_node, root=False, preset_vars=None):
     for node in block:
         handle_node(node)
 
-
     # deconstruct scope:
 
     # no need to deconstruct if root; program ended
     if root: return
-    # remove as current scope
-    scope_stack.pop()
     # delete from parent scope's children list
-    parent_children = scopes[curr_scope()]['children']
+    parent_children = scopes[prev_scope()]['children']
     del parent_children[parent_children.index(scope_id)]
+
     # delete all declared variables and free registers holding them
     declared = scopes[scope_id]['declared']
-    for symbol in declared:
-        symbol = declared[symbol]
+    for key in list(declared):
+        symbol = declared[key]
+
         asm.append(gen_ins('delvar """{}"""'.format(symbol['id'])))
+
+        # ignore current scope from scope calculations (as it will be deleted)
+        #below_scope_declared = _calculate_top_store(scopes_below=1)
+        #asm.append(gen_ins('delvar """{}"""'.format(symbol['id']),
+        #    forced_top_declared=below_scope_declared))
+
         free_register(symbol['register'], force=True)
+        del declared[key]
+
+    if pop_after_compile is True:
+        asm.append(gen_ins('pop_store'))
+
+    # remove as current scope
+    scope_stack.pop()
+
     # delete from scope db
     del scopes[scope_id]
 
