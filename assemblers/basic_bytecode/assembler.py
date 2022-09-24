@@ -3,6 +3,8 @@ import json
 import struct
 import base64
 
+LARGEST = 0
+
 if len(sys.argv) < 4:
     print('usage: python3 assembler.py instructions template_vm out')
     exit()
@@ -100,6 +102,8 @@ class Instruction:
         self.start_index = -1
 
     def assemble(self):
+        global LARGEST
+
         if self.is_label:
             self.assembled = b'';
             self.size = 0;
@@ -132,6 +136,10 @@ class Instruction:
             elif t == 'boolean':
                 assembled.append(int(v))
             elif t in ['register', 'number', 'label']:
+
+                if v > LARGEST:
+                    LARGEST = v
+
                 # yuck
                 if type(v) is float:
                     assembled.pop()
@@ -244,3 +252,4 @@ with open(vm_file, 'r') as f:
 with open(outfile, 'w') as f:
     f.write(vm)
 
+#print(LARGEST)

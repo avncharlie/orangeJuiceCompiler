@@ -77,6 +77,9 @@ OP_CODES = {
     "return": 47,
 }
 
+# bookkeep op codes an op got jjjd
+encode_dict = {op:[] for op in OP_CODES}
+
 def byte_length(i):
     return (i.bit_length() + 7) // 8
 
@@ -114,6 +117,8 @@ class Instruction:
 
         # add encoded op code
         encoded_op = self.encoded_op_code()
+        if encoded_op not in encode_dict[self.info['op']]:
+            encode_dict[self.info['op']].append(encoded_op)
         assembled.append(encoded_op)
 
         # encode arguments
@@ -230,6 +235,9 @@ encoded_bytecode = base64.b64encode(bytecode).decode('utf-8')
 
 if '-l' in sys.argv:
     assembler.display()
+    for op in encode_dict:
+        if encode_dict[op] != []:
+            print('{}: {}'.format(op, ', '.join([str(x) for x in sorted(encode_dict[op])])))
 
 vm = "let bytecode = '{}';\n".format(encoded_bytecode)
 

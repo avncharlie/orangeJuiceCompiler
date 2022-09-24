@@ -148,8 +148,16 @@ let operations = [
             let func_varmap = {'function_map': true};
             variables.push(func_varmap);
 
+            // pad func arguments smaller than expected arguments
+            let args = Array.from(arguments);
+            if (args.length < arglist.length) {
+                for (let x = 0; x <= (arglist.length - args.length); x++) {
+                    args.push(undefined);
+                }
+            }
+
             // setup arguments (manually set them in varmap)
-            for (let [i, arg] of Array.from(arguments).entries()) {
+            for (let [i, arg] of args.entries()) {
                 func_varmap[arglist[i]] = arg
             }
 
@@ -520,6 +528,7 @@ function run(args) {
 
         // special handling for return
         if (op == 47) {
+            //console.log('^ return')
             return argload_register_value_or_literal();
         }
 

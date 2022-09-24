@@ -4,6 +4,7 @@ ast
 ins.json
 out.js
 bytecode
+build
 
 # mac
 .DS_Store

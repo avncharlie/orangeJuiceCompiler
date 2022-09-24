@@ -23,6 +23,8 @@ Unsupported:
     - spread operator
     - sequence expressions
     - do expression
+    - variable_dependent assembler can't support switch statements that declare
+      variables in earlier cases for use in later cases
 
 todo: 
     - error messages?
@@ -173,7 +175,7 @@ def gen_ins(ins, forced_top_declared=None):
     adds string representation as 'string_repr' attribute
     '''
     if ins[0] == ':':
-        print(ins)
+        if '-l' in sys.argv: print(ins)
         return {
                 "type": "label",
                 "id": ins[1:],
@@ -233,7 +235,7 @@ def gen_ins(ins, forced_top_declared=None):
     if curr_top_declared is None:
         curr_top_declared = _current_top_store_declared(ins_split)
 
-    print(curr_top_declared, ins) #DEBUG
+    if '-l' in sys.argv: print(curr_top_declared, ins) #DEBUG
 
     approx_loc = loc_info['start']['line'] if loc_info is not None else 0
 
@@ -343,7 +345,11 @@ def search_scope_table(scope, name, scope_boundary=None):
 
     # try to find variable name in scope
     # stop at global scope or when scope boundary reached
-    while scope is not None and scopes[scope]['created_from'] != scope_boundary:
+    reached_scope_boundary = False
+    while scope is not None and not reached_scope_boundary:
+
+        if scopes[scope]['created_from'] == scope_boundary:
+            reached_scope_boundary = True
 
         if name in scopes[scope]['declared']:
             # name found!
@@ -407,6 +413,7 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
             func_preset_vars = {}
             for arg in node['params']:
                 arg_id = get_name(arg['name'])
+                varset_table.append(arg_id) # needed to keep track of vars in scope
                 asm.append(gen_ins('arrpush r{} """{}"""'.format(arg_list_reg, arg_id)))
                 func_preset_vars[arg['name']] = {
                     'id': arg_id,
@@ -470,8 +477,13 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
 
         # step 6: handle body of function with arguments as preset vars
         asm.append(gen_ins(':' + func_label)) # start label
+
+        # catch all return if there is no return in function
+        node['body']['body'].append({
+            'type': 'UngeneratedInstructionInsert',
+            'instructions': [ 'return Undefined' ]
+        })
         handle_block(node['body']['body'], t, preset_vars=func_preset_vars)
-        asm.append(gen_ins('return Undefined')) # catch all return if there is no return in func body
         asm.append(gen_ins(':' + func_end_label))
 
         # cleanup:
@@ -618,6 +630,7 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
 
             # create new variable
             var_id = get_name('var_' + var_name)
+
             # handle variable initialisation
             r = None
             if decl['init'] is not None:
@@ -1310,7 +1323,20 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
         <decide what case to take and jump there>
         :case1
         <case1 code>
-        ...
+
+        r = evaluate discriminant
+        r1 = test1 === r
+        jt r1 :gotocase1
+
+        :gotocase1
+        push_store
+        jmp :case1
+
+        :case1
+        <case1 code>
+
+        pop_store
+        :end_switch
         '''
 
         end_switch = get_name('end_switch')
@@ -1325,35 +1351,39 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
             'loop_end': end_switch,
         })
 
-        asm.append(gen_ins('push_store'))
-
         # generate combined block of all code in switch statement with labels at
         # where different cases start
         default_name = None
+        default_goto_name = None
         combined_block = []
         for i, c in enumerate(node['cases']):
             name = None
+            goto_name = None
             if c['test'] is None:
                 name = get_name('case_default')
+                goto_name = get_name('goto_case_default')
                 default_name = name
+                default_goto_name = goto_name
             else:
                 name = get_name('case_{}'.format(i))
+                goto_name = get_name('goto_case_{}'.format(i))
 
             c['label'] = name
+            c['goto_label'] = goto_name
 
             # add labels between code blocks to jump to
             combined_block.append({
-                'type': 'InstructionInsert',
+                'type': 'UngeneratedInstructionInsert',
                 'instructions': [
-                    gen_ins(':' + name)
+                    ':' + name
                 ]
             })
             combined_block += c['consequent']
-
         combined_block.append({
-            'type': 'InstructionInsert',
+            'type': 'UngeneratedInstructionInsert',
             'instructions': [
-                gen_ins(':' + end_switch)
+                'pop_store',
+                ':' + end_switch,
             ]
         })
 
@@ -1369,8 +1399,7 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
                 handle_node(c['test'])
                 r_test = c['test']['register']
                 asm.append(gen_ins('eqt r{} r{} r{}'.format(d_reg, r_test, r_result)))
-                asm.append(gen_ins('jt r{} :{}'.format(r_result, c['label'])))
-
+                asm.append(gen_ins('jt r{} :{}'.format(r_result, c['goto_label'])))
                 free_register(r_test)
 
         free_register(d_reg)
@@ -1378,15 +1407,25 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
 
         # if no case matches either go to end of switch or to default case if
         # it exists
-        if default_name is not None:
-            asm.append(gen_ins('jmp :{}'.format(default_name)))
+        if default_goto_name is not None:
+            asm.append(gen_ins('jmp :{}'.format(default_goto_name)))
         else:
             asm.append(gen_ins('jmp :{}'.format(end_switch)))
 
+        # handle go to labels
+        for c in node['cases']:
+            label = None 
+            if c['test'] is None:
+                label = default_name
+            else:
+                label = c['label']
 
+            asm.append(gen_ins(':{}'.format(c['goto_label'])))
+            asm.append(gen_ins('push_store'))
+            asm.append(gen_ins('jmp :{}'.format(label), forced_top_declared=1))
+
+        # handle combined block
         handle_block(combined_block, base_node=t)
-
-        asm.append(gen_ins('pop_store'))
 
         # no longer in switch, remove bookkeeping info
         break_stack.pop()
@@ -1536,8 +1575,7 @@ instructions_string = ''
 for ins in asm: 
     instructions_string += ins['string_repr'] + '\n'
 
-if '-l' in sys.argv:
-    print(instructions_string)
+#if '-l' in sys.argv: print(instructions_string)
 
 f = open('.ins_read', 'w')
 f.write(instructions_string)
@@ -1556,5 +1594,7 @@ else:
     json.dump(instructions, out_file)
 
 out_file.close()
+
+#print(varset_table)
 
 #print(used_names, len(used_names))

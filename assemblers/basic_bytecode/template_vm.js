@@ -104,7 +104,8 @@ function argload_number(skip) {
 
     let num = 0;
     for (let x = 0; x<size; x++) {
-        num += b_next() * (256**x);
+        //num += b_next() << (x*8);
+        num += b_next() * (256**x); // TODO: use bitshift 
     }
     return num;
 }
