@@ -114,6 +114,8 @@ function argload_register(skip) {
 }
 
 let operations = [
+// begin operations
+
     function push_store() {
         variables.push({'function_map': false});
     },
@@ -149,7 +151,7 @@ let operations = [
             variables.push(func_varmap);
 
             // pad func arguments smaller than expected arguments
-            let args = Array.from(arguments);
+            let args = Array.from(arguments).slice(0, arglist.length);
             if (args.length < arglist.length) {
                 for (let x = 0; x <= (arglist.length - args.length); x++) {
                     args.push(undefined);
@@ -501,8 +503,13 @@ let operations = [
         let flags = argload_register_value_or_literal();
         let reg = argload_register()
         registers[reg] = new RegExp(pattern, flags)
-    }
+    },
 
+    function ret() {
+        return -1;
+    },
+
+// end operations
 ]
 
 function num_top_scope_vars() {
@@ -526,13 +533,11 @@ function run(args) {
         //console.log(instruction_index, op, operations[op], num_top_scope_vars());
         //console.log(instruction_index, op, operations[op], num_top_scope_vars(), variables);
 
-        // special handling for return
-        if (op == 47) {
-            //console.log('^ return')
+        if (operations[op]() == -1) {
+            // special handling for return
             return argload_register_value_or_literal();
         }
 
-        operations[op]();
         /*
         try {
             operations[op]();

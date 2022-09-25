@@ -2,6 +2,7 @@ import sys
 import json
 import struct
 import base64
+import random
 
 if len(sys.argv) < 4:
     print('usage: python3 assembler.py instructions template_vm out')
@@ -26,56 +27,61 @@ ARG_TYPE_CODES = {
 }
 
 OP_CODE_SIZE = 1
-OP_CODES = {
-    "push_store": 0,
-    "pop_store": 1,
-    "whatsthis": 2,
-    "create_func": 3,
-    "call": 4,
-    "global": 5,
-    "mov": 6,
-    "add": 7,
-    "sub": 8,
-    "mul": 9,
-    "div": 10,
-    "jmp": 11,
-    "jt": 12,
-    "jnt": 13,
-    "setvar": 14,
-    "getvar": 15,
-    "delvar": 16,
-    "arr": 17,
-    "arrpush": 18,
-    "obj": 19,
-    "setprop": 20,
-    "getprop": 21,
-    "eq": 22,
-    "neq": 23,
-    "eqt": 24,
-    "neqt": 25,
-    "ge": 26,
-    "geeq": 27,
-    "le": 28,
-    "leeq": 29,
-    "mod": 30,
-    "shl": 31,
-    "shr": 32,
-    "ushr": 33,
-    "pow": 34,
-    "bit_or": 35,
-    "bit_and": 36,
-    "xor": 37,
-    "inside": 38,
-    "check_instance": 39,
-    "unary_plus": 40,
-    "unary_neg": 41,
-    "unary_not": 42,
-    "unary_bit_not": 43,
-    "unary_typeof": 44,
-    "nop": 45,
-    "regex": 46,
-    "return": 47,
-}
+OPS = [
+    "push_store",
+    "pop_store",
+    "whatsthis",
+    "create_func",
+    "call",
+    "global",
+    "mov",
+    "add",
+    "sub",
+    "mul",
+    "div",
+    "jmp",
+    "jt",
+    "jnt",
+    "setvar",
+    "getvar",
+    "delvar",
+    "arr",
+    "arrpush",
+    "obj",
+    "setprop",
+    "getprop",
+    "eq",
+    "neq",
+    "eqt",
+    "neqt",
+    "ge",
+    "geeq",
+    "le",
+    "leeq",
+    "mod",
+    "shl",
+    "shr",
+    "ushr",
+    "pow",
+    "bit_or",
+    "bit_and",
+    "xor",
+    "inside",
+    "check_instance",
+    "unary_plus",
+    "unary_neg",
+    "unary_not",
+    "unary_bit_not",
+    "unary_typeof",
+    "nop",
+    "regex",
+    "ret",
+]
+
+# randomise op codes
+random.shuffle(OPS)
+
+OP_CODES = {op: i for i, op in enumerate(OPS)}
 
 # bookkeep op codes an op got jjjd
 encode_dict = {op:[] for op in OP_CODES}
@@ -98,6 +104,9 @@ class Instruction:
         if self.info['type'] == 'label':
             self.is_label = True
         else:
+            if self.info['op'] == 'return':
+                self.info['op'] = 'ret'
+
             for arg in self.info['args']:
                 if arg['type'] == 'label':
                     self.label_referenced = arg['value']
@@ -241,17 +250,43 @@ if '-l' in sys.argv:
 
 vm = "let bytecode = '{}';\n".format(encoded_bytecode)
 
+operations = {}
+
 reading = False
+reading_ops = False
+curr_op = None
+curr_op_name = None
 with open(vm_file, 'r') as f:
     for line in f:
+        if line == '// end operations\n':
+            reading_ops = False
+            # add randomised ops
+            for op in OPS:
+                vm += operations[op]
+
         if line == '// end vm\n':
             reading = False
 
-        if reading:
+        if reading and not reading_ops:
             vm += line
+
+        if reading_ops == True:
+            if curr_op is None:
+                if line.startswith('    function'):
+                    curr_op_name = line.split()[1][:-2]
+                    curr_op = line
+            else:
+                curr_op += line
+                if line.startswith('    },'):
+                    operations[curr_op_name] = curr_op
+                    curr_op = None
+                    curr_op_name = None
 
         if line == '// begin vm\n':
             reading = True
+
+        if line == '// begin operations\n':
+            reading_ops = True
 
 with open(outfile, 'w') as f:
     f.write(vm)
