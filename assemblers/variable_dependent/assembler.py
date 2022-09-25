@@ -90,10 +90,12 @@ def byte_length(i):
     return (i.bit_length() + 7) // 8
 
 class Instruction:
-    def encoded_op_code(self):
-        op = OP_CODES[self.info['op']]
-        encoded = op ^ self.info['top_scope_declared']
-        return encoded
+    def encode(self, instr):
+        key = self.info['top_scope_declared']
+        return [byte ^ key for byte in instr]
+
+    def get_op_code(self):
+        return OP_CODES[self.info['op']]
 
     def __init__(self, instruction_info):
         self.info = instruction_info
@@ -124,13 +126,10 @@ class Instruction:
 
         assembled = []
 
-        # add encoded op code
-        encoded_op = self.encoded_op_code()
-        if encoded_op not in encode_dict[self.info['op']]:
-            encode_dict[self.info['op']].append(encoded_op)
-        assembled.append(encoded_op)
+        # add op code
+        assembled.append(self.get_op_code())
 
-        # encode arguments
+        # add arguments
         for arg in self.info['args']:
             t = arg['type']
             v = arg['value']
@@ -166,6 +165,13 @@ class Instruction:
             elif t not in ['null', 'Undefined']:
                 raise Exception('argument type {} unknown'.format(t))
 
+        # encode instruction
+        assembled = self.encode(assembled)
+
+        encoded_op = assembled[0]
+        if encoded_op not in encode_dict[self.info['op']]:
+            encode_dict[self.info['op']].append(encoded_op)
+
         try:
             self.assembled = bytes(assembled)
         except ValueError as e:
@@ -177,8 +183,9 @@ class Instruction:
         return self.assembled
 
     def patch(self, patch_loc):
+        patch_loc = bytes(self.encode(patch_loc.to_bytes(4, 'little')))
         self.assembled = self.assembled[:self.patch_start] \
-                + patch_loc.to_bytes(4, 'little') \
+                + patch_loc \
                 + self.assembled[self.patch_start+4:]
 
     def end_index(self):

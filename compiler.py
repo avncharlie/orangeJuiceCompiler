@@ -50,7 +50,7 @@ possible bugs:
 '''
 
 DEBUG = False; DEBUGDEBUG = False
-DEBUG = True; DEBUGDEBUG = False
+#DEBUG = True; DEBUGDEBUG = False
 #DEBUG = True; DEBUGDEBUG = True
 
 # if registers[x] == false or doesn't exist, register unclaimed

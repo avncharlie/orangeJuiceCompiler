@@ -26,6 +26,7 @@ let reg_stack = []
 let registers = []
 let variables = [{'function_map': false}]
 let this_stack = [globalThis]
+let key = -1;
 
 function bytes_to_float(bytes) {
     var sign = (bytes & 0x80000000) ? -1 : 1;
@@ -46,7 +47,7 @@ function bytes_to_float(bytes) {
 
 
 function b_next() {
-    return bytecode[instruction_index++];
+    return bytecode[instruction_index++] ^ key;
 }
 
 function argload_register_value_or_literal() {
@@ -79,7 +80,11 @@ function argload_string(skip) {
         instruction_index++;
     }
     let size = argload_number();
-    let s =  String.fromCharCode(...bytecode.slice(instruction_index, instruction_index+size));
+    let sbytes = bytecode.slice(instruction_index, instruction_index+size);
+    for (let x = 0; x < sbytes.length; x++) {
+        sbytes[x] = sbytes[x] ^ key;
+    }
+    let s =  String.fromCharCode(...sbytes);
     instruction_index += size;
 
     return s;
@@ -512,12 +517,8 @@ let operations = [
 // end operations
 ]
 
-function num_top_scope_vars() {
-    return Object.keys(variables[variables.length - 1]).length;
-}
-
-function decode(op) {
-    return op ^ num_top_scope_vars();
+function set_key() {
+    key = Object.keys(variables[variables.length - 1]).length;
 }
 
 function run(args) {
@@ -528,7 +529,9 @@ function run(args) {
     }
 
     while (instruction_index < bytecode.length) {
-        let op = decode(b_next());
+        set_key();
+
+        let op = b_next();
 
         //console.log(instruction_index, op, operations[op], num_top_scope_vars());
         //console.log(instruction_index, op, operations[op], num_top_scope_vars(), variables);
