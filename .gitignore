@@ -4,7 +4,10 @@ ast
 ins.json
 out.js
 bytecode
-build
+build/ast
+build/ins.json
+build/out.js
+build/graph/*
 
 # mac
 .DS_Store
