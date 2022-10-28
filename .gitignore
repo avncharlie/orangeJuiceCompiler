@@ -8,6 +8,7 @@ build/ast
 build/ins.json
 build/out.js
 build/graph/*
+disass.png
 
 # mac
 .DS_Store

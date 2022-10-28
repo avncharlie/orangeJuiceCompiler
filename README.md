@@ -11,6 +11,7 @@ To generate disassembly graph output, install [PyGraphviz](https://pygraphviz.gi
 ## Build
 The build script is `build.sh`. To use it, run this command:
 ``` $ build.sh <assembler> <file> ```
+
 `assembler` must be an installed assembler. The currently available assemblers are `debug` `basic_bytecode` and `variable_dependent`.
 
 The build script will generate the AST of `file`, compile it with `compile.py` then assemble it with the chosen assembler. The loaded VM (the obfuscated program) will be in `build/out.js`.
@@ -26,4 +27,4 @@ To run all tests and benchmarks under a specific assembler run `./run_tests.py <
 To generate a disassembly, run `./graph.sh <assembler> <file>`. This will create the file `disass.png` containing the disassembly.
 To generate different images for different functions (this is useful for inspecting larger programs), run `./graph.sh <assembler> <file> -s`
 
-This will generate output dissasembly graphs in the `build/graph` directory.
+This will generate output dissasembly graphs in the `build/graph/` directory.
