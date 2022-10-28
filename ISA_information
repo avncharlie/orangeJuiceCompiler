@@ -148,7 +148,7 @@ inside <r1> <r2> <ans>
     r1, r2 and ans must be registers
 
 check_instance <r1> <r2> <ans>
-    calc r1 in r2, store in ans
+    calc r1 instanceof r2, store in ans
     r1, r2 and ans must be registers
 
 unary_plus <r1> <ans>

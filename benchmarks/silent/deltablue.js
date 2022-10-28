@@ -884,4 +884,3 @@ function deltaBlue() {
 }
 
 deltaBlue()
-console.log('deltaBlue benchmark completed.')

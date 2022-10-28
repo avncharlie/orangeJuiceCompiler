@@ -50,7 +50,7 @@ possible bugs:
 '''
 
 DEBUG = False; DEBUGDEBUG = False
-#DEBUG = True; DEBUGDEBUG = False
+DEBUG = True; DEBUGDEBUG = False
 #DEBUG = True; DEBUGDEBUG = True
 
 # if registers[x] == false or doesn't exist, register unclaimed
@@ -1598,3 +1598,4 @@ out_file.close()
 #print(varset_table)
 
 #print(used_names, len(used_names))
+#print(len(registers))

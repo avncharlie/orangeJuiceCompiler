@@ -98,7 +98,9 @@ def get_assemblers():
     assemblers = []
     for pos_assembler in assembler_files:
         if os.path.isdir(pos_assembler):
-            assemblers.append(pos_assembler.split('/')[-1])
+            k = pos_assembler.split('/')[-1]
+            if k != 'grapher':
+                assemblers.append(k)
     return assemblers
 
 if len(sys.argv) < 2:
@@ -107,6 +109,7 @@ if len(sys.argv) < 2:
 
 assembler = sys.argv[1]
 valid_assemblers = get_assemblers()
+
 if assembler not in valid_assemblers:
     print('"{}" not valid assembler, must be one of: {}'.format(assembler, valid_assemblers))
     exit()
@@ -115,7 +118,10 @@ assembler = '../assemblers/'+assembler
     
 if len(sys.argv) == 2:
     tests = [f for f in os.listdir() if f.startswith('test_')]
-    benchmarks = ['../benchmarks/'+f for f in os.listdir('../benchmarks')]
+    benchmarks = []
+    for f in os.listdir('../benchmarks'):
+        if f != 'silent':
+            benchmarks.append('../benchmarks/'+f)
 
     print('* unit tests *')
     test_files(assembler, tests)
