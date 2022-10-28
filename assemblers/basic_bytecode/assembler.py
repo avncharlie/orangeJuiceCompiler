@@ -1,3 +1,8 @@
+'''
+Basic bytecode assembler.
+Created by Alvin Charles, alvinjoycharles@gmail.com
+'''
+
 import sys
 import json
 import struct

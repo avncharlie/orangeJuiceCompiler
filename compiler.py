@@ -1,3 +1,8 @@
+'''
+Orange Juice Compiler.
+Created by Alvin Charles, alvinjoycharles@gmail.com
+'''
+
 import sys
 import ast as py_ast 
 import copy
@@ -49,23 +54,30 @@ possible bugs:
       need to investigate more
 '''
 
-DEBUG = False; DEBUGDEBUG = False
-DEBUG = True; DEBUGDEBUG = False
-#DEBUG = True; DEBUGDEBUG = True
+# if DEBUG is True, instructions will have descriptive labels and variable names
+DEBUG = True
+#DEBUG = False
+
+# set to true very verbose debugging output
+DEBUGDEBUG = False
 
 # if registers[x] == false or doesn't exist, register unclaimed
 reg_stack = []
 registers = [False, False, False]
 
 vars_changed = []
+
+# scope table
 scopes_backup = []
 scopes = {}
 
+# keep track of current compiler scope
 scope_stack_stack = []
 scope_stack = [None]
 curr_scope = lambda : scope_stack[len(scope_stack)-1]
 prev_scope = lambda : scope_stack[len(scope_stack)-2]
 
+# keep track of loops or break statements compiler is currently in
 break_stack = []
 
 branch_counter = 0
@@ -369,7 +381,6 @@ def handle_node(node, named_block=None, declare_func_mode=False, assigning_ids=F
     if given expression, assign reg to current_scope, t
     will be attached in 'register' attribute
     will also return register
-    document! especially keyword arguments
     '''
 
     global asm
@@ -1569,13 +1580,10 @@ compile(ast)
 # detailed instructions
 #print(json.dumps(asm, indent=2))
 
-# short form instructions
 instructions_string = ''
 
 for ins in asm: 
     instructions_string += ins['string_repr'] + '\n'
-
-#if '-l' in sys.argv: print(instructions_string)
 
 f = open('.ins_read', 'w')
 f.write(instructions_string)
@@ -1596,6 +1604,5 @@ else:
 out_file.close()
 
 #print(varset_table)
-
 #print(used_names, len(used_names))
 #print(len(registers))
